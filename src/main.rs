@@ -2,6 +2,8 @@ use std::convert::TryFrom;
 use std::env;
 use std::u64;
 use dotenv::dotenv;
+use serenity::model::prelude::Channel;
+use serenity::model::prelude::ChannelId;
 use tracing::{info, error, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -56,9 +58,7 @@ impl EventHandler for Handler {
             let db = DBClient::connect().await.expect("Failed to connect to database");
             let user_score = db.fetch_user_score(msg.author.id.as_u64()).await.expect("Failed to fetch user score");
             let mut score = 0;
-            if user_score.is_none() {
-                score = 0;
-            } else {
+            if !user_score.is_none() {
                 let uscore = user_score.unwrap();
                 score = uscore.score;
             }
@@ -193,6 +193,13 @@ impl EventHandler for Handler {
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("{} is connected!", ready.user.name);
         ctx.set_presence(Some(Activity::competing("Smooth Brain Marathon")), OnlineStatus::Online).await;
+
+        let channel_id = ChannelId(432351112616738837);
+
+        let _ = channel_id.send_message(&ctx.http, |m| {
+            m.content("test")
+                .embed(|e| e.title("I'm back!").description(format!("{:?}", chrono::Utc::now())))
+        });
     }
 }
 
