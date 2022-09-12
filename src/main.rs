@@ -196,10 +196,9 @@ impl EventHandler for Handler {
 
         let channel_id = ChannelId(432351112616738837);
 
-        let _ = channel_id.send_message(&ctx.http, |m| {
-            m.content("test")
-                .embed(|e| e.title("I'm back!").description(format!("{:?}", chrono::Utc::now())))
-        });
+        if let Err(why) = channel_id.say(&ctx.http, "I'm back!").await {
+            error!("Error sending message: {:?}", why);
+        }
     }
 }
 
