@@ -195,24 +195,31 @@ impl EventHandler for Handler {
     // Handle Slash Command Trigger
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
-            println!("Received command interaction: {:#?}", command.data.name);
+            println!("Received command interaction: {:#?}", command.data.n);
 
             let content = match command.data.name.as_str() {
                 "ping" => "Pong!".to_string(),
                 "score" => {
+                    let mut user_id = command.user.id.as_u64();
+                    let mut username = command.user.tag();
+
                     let options = command
                         .data
                         .options
-                        .get(0)
-                        .expect("Expected user option")
-                        .resolved
-                        .as_ref()
-                        .expect("Expected user object");
-                    let mut user_id = command.user.id.as_u64();
-                    let mut username = command.user.tag();
-                    if let CommandDataOptionValue::User(user, _member) = options {
-                        user_id = user.id.as_u64();
-                        username = user.tag();
+                        .get(0);
+                    println!("Options: {:?}", options);
+                    if options.is_none() {
+                        return;
+                    } else {
+                        let option = options
+                            .expect("Expected User Id")
+                            .resolved
+                            .as_ref()
+                            .expect("Expected User Id");
+                        if let CommandDataOptionValue::User(user, _member) = option {
+                            user_id = user.id.as_u64();
+                            username = user.tag();
+                        }
                     }
 
                     let db = DBClient::connect().await.expect("Failed to connect to database");
