@@ -195,7 +195,7 @@ impl EventHandler for Handler {
     // Handle Slash Command Trigger
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
-            println!("Received command interaction: {:#?}", command.data.n);
+            println!("Received command interaction: {:#?}", command.data.name);
 
             let content = match command.data.name.as_str() {
                 "ping" => "Pong!".to_string(),
