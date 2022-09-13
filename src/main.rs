@@ -4,7 +4,9 @@ use std::u64;
 use dotenv::dotenv;
 use serenity::model::prelude::ChannelId;
 use serenity::model::prelude::GuildId;
+use serenity::model::application::command::{CommandOptionType};
 use serenity::model::application::interaction::{Interaction, InteractionResponseType};
+use serenity::model::prelude::interaction::application_command::CommandDataOptionValue;
 use tracing::{info, error, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -193,10 +195,35 @@ impl EventHandler for Handler {
     // Handle Slash Command Trigger
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::ApplicationCommand(command) = interaction {
-            println!("Received command interaction: {:#?}", command);
+            println!("Received command interaction: {:#?}", command.data.name);
 
             let content = match command.data.name.as_str() {
-                "ping" => "Hey, I'm alive!".to_string(),
+                "ping" => "Pong!".to_string(),
+                "score" => {
+                    let options = command
+                        .data
+                        .options
+                        .get(0)
+                        .expect("Expected user option")
+                        .resolved
+                        .as_ref()
+                        .expect("Expected user object");
+                    let mut user_id = command.user.id.as_u64();
+                    let mut username = command.user.tag();
+                    if let CommandDataOptionValue::User(user, _member) = options {
+                        user_id = user.id.as_u64();
+                        username = user.tag();
+                    }
+
+                    let db = DBClient::connect().await.expect("Failed to connect to database");
+                    let user_score = db.fetch_user_score(user_id).await.expect("Failed to fetch user score");
+                    let mut score = 0;
+                    if !user_score.is_none() {
+                        let uscore = user_score.unwrap();
+                        score = uscore.score;
+                    }
+                    format!("{}'s score is {}", username, score)
+                }
                 _ => "not implemented :(".to_string(),
             };
 
@@ -232,6 +259,15 @@ impl EventHandler for Handler {
             commands
                 .create_application_command(|command| {
                     command.name("ping").description("A ping command")
+                })
+                .create_application_command(|command| {
+                    command.name("score").description("Get a user's score").create_option(|option| {
+                        option
+                            .name("user")
+                            .description("The user's score to look up")
+                            .kind(CommandOptionType::User)
+                            .required(false)
+                    })
                 })
         }).await;
 
