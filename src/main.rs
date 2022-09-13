@@ -34,14 +34,6 @@ impl EventHandler for Handler {
             if let Err(why) = msg.channel_id.say(&ctx.http, "Pong!").await {
                 error!("Error sending message: {:?}", why);
             }
-        } else if msg.content == "!time" {
-            let response = MessageBuilder::new()
-                .push("The time is ")
-                .push(format!("{:?}", chrono::Utc::now()))
-                .build();
-            if let Err(why) = msg.channel_id.say(&ctx.http, response).await {
-                error!("Error sending message: {:?}", why);
-            }
         } else if msg.content == "!whoami" {
             let response = MessageBuilder::new()
                 .push("```")
@@ -54,22 +46,6 @@ impl EventHandler for Handler {
                 .push(format!("banner        : {:?}\n", msg.author.banner))
                 .push("```")
                 .build();
-            if let Err(why) = msg.channel_id.say(&ctx.http, response).await {
-                error!("Error sending message: {:?}", why);
-            }
-        } else if msg.content == "!score" {
-            let db = DBClient::connect().await.expect("Failed to connect to database");
-            let user_score = db.fetch_user_score(msg.author.id.as_u64()).await.expect("Failed to fetch user score");
-            let mut score = 0;
-            if !user_score.is_none() {
-                let uscore = user_score.unwrap();
-                score = uscore.score;
-            }
-            let response = MessageBuilder::new()
-                .push("Your score is ")
-                .push(format!("{:?}", score))
-                .build();
-
             if let Err(why) = msg.channel_id.say(&ctx.http, response).await {
                 error!("Error sending message: {:?}", why);
             }
@@ -199,6 +175,12 @@ impl EventHandler for Handler {
 
             let content = match command.data.name.as_str() {
                 "ping" => "Pong!".to_string(),
+                "time" => {
+                    MessageBuilder::new()
+                        .push(":alarm_clock: The current time for MotorBot is ")
+                        .push(format!("{:?}", chrono::Utc::now()))
+                        .build()
+                },
                 "score" => {
                     let mut user_id = command.user.id.as_u64();
                     let mut username = command.user.tag();
@@ -208,9 +190,7 @@ impl EventHandler for Handler {
                         .options
                         .get(0);
                     println!("Options: {:?}", options);
-                    if options.is_none() {
-                        return;
-                    } else {
+                    if !options.is_none() {
                         let option = options
                             .expect("Expected User Id")
                             .resolved
@@ -266,6 +246,9 @@ impl EventHandler for Handler {
             commands
                 .create_application_command(|command| {
                     command.name("ping").description("A ping command")
+                })
+                .create_application_command(|command| {
+                    command.name("time").description("Returns server time for MotorBot")
                 })
                 .create_application_command(|command| {
                     command.name("score").description("Get a user's score").create_option(|option| {
