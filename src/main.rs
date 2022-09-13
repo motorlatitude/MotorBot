@@ -2,8 +2,9 @@ use std::convert::TryFrom;
 use std::env;
 use std::u64;
 use dotenv::dotenv;
-use serenity::model::prelude::Channel;
 use serenity::model::prelude::ChannelId;
+use serenity::model::prelude::GuildId;
+use serenity::model::application::interaction::{Interaction, InteractionResponseType};
 use tracing::{info, error, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -189,6 +190,29 @@ impl EventHandler for Handler {
         }
     }
 
+    // Handle Slash Command Trigger
+    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+        if let Interaction::ApplicationCommand(command) = interaction {
+            println!("Received command interaction: {:#?}", command);
+
+            let content = match command.data.name.as_str() {
+                "ping" => "Hey, I'm alive!".to_string(),
+                _ => "not implemented :(".to_string(),
+            };
+
+            if let Err(why) = command
+                .create_interaction_response(&ctx.http, |response| {
+                    response
+                        .kind(InteractionResponseType::ChannelMessageWithSource)
+                        .interaction_response_data(|message| message.content(content))
+                })
+                .await
+            {
+                println!("Cannot respond to slash command: {}", why);
+            }
+        }
+    }
+
     // Ready Event
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("{} is connected!", ready.user.name);
@@ -199,6 +223,19 @@ impl EventHandler for Handler {
         if let Err(why) = channel_id.say(&ctx.http, "I'm back!").await {
             error!("Error sending message: {:?}", why);
         }
+
+        // Register Slash Commands
+
+        let guild_id = GuildId(130734377066954752);
+
+        let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
+            commands
+                .create_application_command(|command| {
+                    command.name("ping").description("A ping command")
+                })
+        }).await;
+
+        println!("I now have the following guild slash commands: {:#?}", commands);
     }
 }
 
