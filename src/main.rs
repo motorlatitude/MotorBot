@@ -51,9 +51,10 @@ impl EventHandler for Handler {
             }
         }
 
-        let channel_id: u64 = 130734377066954752;
+        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553];
+
         if msg.attachments.len() > 0 || msg.content.contains("http") {
-            if msg.channel_id.as_u64() == &channel_id && msg.author.id.as_u64() != &169554882674556930 {
+            if channel_ids.contains(msg.channel_id.as_u64()) && msg.author.id.as_u64() != &169554882674556930 {
                 if let Err(why) = msg.react(&ctx, ReactionType::try_from("<:upvote:429449534389616641>").unwrap()).await {
                     error!("Failed to react to message {:?}", why);
                 }
@@ -66,14 +67,14 @@ impl EventHandler for Handler {
 
     async fn reaction_add(&self, ctx: Context, reaction: Reaction) {
         info!("Reaction Added");
-        let channel_id: u64 = 130734377066954752;
+        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553];
 
-        if reaction.channel_id.as_u64() == &channel_id &&
+        if channel_ids.contains(reaction.channel_id.as_u64()) &&
             reaction.emoji == ReactionType::try_from("<:upvote:429449534389616641>").unwrap() &&
             reaction.user_id.unwrap().as_u64() != &169554882674556930 {
             let user = reaction.user_id.unwrap(); // The user id of who upvoted
             let message_id = reaction.message_id; // The message id of the message that was upvoted
-            let message_user_id = ctx.http.get_message(channel_id, *message_id.as_u64()).await.unwrap().author.id; // The user id of the message that was upvoted
+            let message_user_id = ctx.http.get_message(*reaction.channel_id.as_u64(), *message_id.as_u64()).await.unwrap().author.id; // The user id of the message that was upvoted
 
             info!("User {:?} upvoted message from user: {:?}", user, message_user_id);
 
@@ -91,12 +92,12 @@ impl EventHandler for Handler {
                     error!("Failed to set user score {:?}", why);
                 }
             }
-        } else if reaction.channel_id.as_u64() == &channel_id &&
+        } else if channel_ids.contains(reaction.channel_id.as_u64()) &&
                     reaction.emoji == ReactionType::try_from("<:downvote:429449638454493187>").unwrap() &&
                     reaction.user_id.unwrap().as_u64() != &169554882674556930 {
             let user = reaction.user_id.unwrap(); // The user id of who upvoted
             let message_id = reaction.message_id; // The message id of the message that was upvoted
-            let message_user_id = ctx.http.get_message(channel_id, *message_id.as_u64()).await.unwrap().author.id; // The user id of the message that was downvote
+            let message_user_id = ctx.http.get_message(*reaction.channel_id.as_u64(), *message_id.as_u64()).await.unwrap().author.id; // The user id of the message that was downvote
             info!("User {:?} downvoted message from user: {:?}", user, message_user_id);
 
             // Update Database
@@ -118,14 +119,14 @@ impl EventHandler for Handler {
 
     async fn reaction_remove(&self, ctx: Context, reaction: Reaction) {
         info!("Reaction Removed");
-        let channel_id: u64 = 130734377066954752;
+        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553];
 
-        if reaction.channel_id.as_u64() == &channel_id &&
+        if channel_ids.contains(reaction.channel_id.as_u64()) &&
             reaction.emoji == ReactionType::try_from("<:upvote:429449534389616641>").unwrap() &&
             reaction.user_id.unwrap().as_u64() != &169554882674556930 {
             let user = reaction.user_id.unwrap(); // The user id of who upvoted
             let message_id = reaction.message_id; // The message id of the message that was upvoted
-            let message_user_id = ctx.http.get_message(channel_id, *message_id.as_u64()).await.unwrap().author.id; // The user id of the message that was the upvote was removed from
+            let message_user_id = ctx.http.get_message(*reaction.channel_id.as_u64(), *message_id.as_u64()).await.unwrap().author.id; // The user id of the message that was the upvote was removed from
 
             info!("User {:?} upvoted message from user: {:?}", user, message_user_id);
 
@@ -143,12 +144,12 @@ impl EventHandler for Handler {
                     error!("Failed to set user score {:?}", why);
                 }
             }
-        } else if reaction.channel_id.as_u64() == &channel_id &&
+        } else if channel_ids.contains(reaction.channel_id.as_u64()) &&
                     reaction.emoji == ReactionType::try_from("<:downvote:429449638454493187>").unwrap() &&
                     reaction.user_id.unwrap().as_u64() != &169554882674556930 {
             let user = reaction.user_id.unwrap(); // The user id of who upvoted
             let message_id = reaction.message_id; // The message id of the message that was upvoted
-            let message_user_id = ctx.http.get_message(channel_id, *message_id.as_u64()).await.unwrap().author.id; // The user id of the message that was downvote was removed from
+            let message_user_id = ctx.http.get_message(*reaction.channel_id.as_u64(), *message_id.as_u64()).await.unwrap().author.id; // The user id of the message that was downvote was removed from
             info!("User {:?} downvoted message from user: {:?}", user, message_user_id);
 
             // Update Database
