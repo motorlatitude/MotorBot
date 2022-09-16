@@ -201,6 +201,19 @@ impl EventHandler for Handler {
                         .push_bold_safe(roll)
                         .build()
                 },
+                "headsortails" => {
+                    let mut rng = rand::thread_rng();
+                    let roll = rng.gen_range(1..100);
+                    if roll >= 50 {
+                        MessageBuilder::new()
+                            .push(":coin: Heads")
+                            .build()
+                    } else {
+                        MessageBuilder::new()
+                            .push(":coin: Tails")
+                            .build()
+                    }
+                },
                 "score" => {
                     let mut user_id = command.user.id.as_u64();
                     let mut username = command.user.tag();
@@ -272,6 +285,9 @@ impl EventHandler for Handler {
                 })
                 .create_application_command(|command| {
                     command.name("roll").description("Roll the dice, what will you get?")
+                })
+                .create_application_command(|command| {
+                    command.name("headsortails").description("Heads or tails?")
                 })
                 .create_application_command(|command| {
                     command.name("score").description("Get a user's score").create_option(|option| {
