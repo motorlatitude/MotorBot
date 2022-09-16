@@ -115,7 +115,7 @@ impl EventHandler for Handler {
             let db = DBClient::connect().await.expect("Failed to connect to database");
             let user_score = db.fetch_user_score(message_user_id.as_u64()).await.expect("Failed to fetch user score");
             if user_score.is_none() {
-                if let Err(why) = db.set_user_score(message_user_id.as_u64(), 1).await {
+                if let Err(why) = db.set_user_score(message_user_id.as_u64(), 0).await {
                     error!("Failed to set user score {:?}", why);
                 }
             } else {
@@ -145,7 +145,7 @@ impl EventHandler for Handler {
             let db = DBClient::connect().await.expect("Failed to connect to database");
             let user_score = db.fetch_user_score(message_user_id.as_u64()).await.expect("Failed to fetch user score");
             if user_score.is_none() {
-                if let Err(why) = db.set_user_score(message_user_id.as_u64(), 1).await {
+                if let Err(why) = db.set_user_score(message_user_id.as_u64(), 0).await {
                     error!("Failed to set user score {:?}", why);
                 }
             } else {
