@@ -52,6 +52,16 @@ impl EventHandler for Handler {
             }
         }
 
+        if msg.content.contains("kys") {
+            let response = MessageBuilder::new()
+            .push("Calm down before you hurt yourself ")
+            .user(msg.author.id)
+            .build();
+            if let Err(why) = msg.channel_id.say(&ctx.http, response).await {
+                error!("Error sending message: {:?}", why);
+            }
+        }
+
         let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553];
 
         if msg.attachments.len() > 0 || msg.content.contains("http") {
