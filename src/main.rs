@@ -7,6 +7,8 @@ use serenity::model::prelude::ChannelId;
 use serenity::model::prelude::GuildId;
 use serenity::model::application::command::{CommandOptionType};
 use serenity::model::application::interaction::{Interaction, InteractionResponseType};
+use serenity::model::application::command::Command;
+use serenity::model::prelude::application_command::ApplicationCommandOptionType;
 use serenity::model::prelude::interaction::application_command::CommandDataOptionValue;
 use tracing::{info, error, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -278,9 +280,6 @@ impl EventHandler for Handler {
         let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
             commands
                 .create_application_command(|command| {
-                    command.name("ping").description("A ping command")
-                })
-                .create_application_command(|command| {
                     command.name("time").description("Returns server time for MotorBot")
                 })
                 .create_application_command(|command| {
@@ -301,6 +300,11 @@ impl EventHandler for Handler {
         }).await;
 
         println!("I now have the following guild slash commands: {:#?}", commands);
+
+        let _ = Command::create_global_application_command(&ctx.http, |command| {
+            command.name("ping").description("A simple ping command")
+        })
+        .await;
     }
 }
 
