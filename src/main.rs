@@ -1,6 +1,11 @@
 use std::convert::TryFrom;
 use std::env;
 use std::u64;
+use std::time::Duration;
+use reqwest;
+use reqwest::header::{HeaderMap, HeaderValue};
+use serde::Deserialize;
+use serde_json::{Result, Value};
 use rand::Rng;
 use dotenv::dotenv;
 use serenity::model::prelude::ChannelId;
@@ -8,10 +13,11 @@ use serenity::model::prelude::GuildId;
 use serenity::model::application::command::{CommandOptionType};
 use serenity::model::application::interaction::{Interaction, InteractionResponseType};
 use serenity::model::application::command::Command;
-use serenity::model::prelude::application_command::ApplicationCommandOptionType;
 use serenity::model::prelude::interaction::application_command::CommandDataOptionValue;
 use tracing::{info, error, Level};
 use tracing_subscriber::FmtSubscriber;
+
+use clokwerk::{AsyncScheduler, TimeUnits, Job};
 
 use serenity::async_trait;
 use serenity::model::channel::Message;
@@ -27,6 +33,20 @@ mod db;
 use crate::db::DBClient;
 
 struct Handler;
+
+#[derive(Deserialize, Debug)]
+struct Response {
+    body: Vec<Joke>,
+    success: bool
+}
+
+#[derive(Deserialize, Debug)]
+struct Joke {
+    _id: serde_json::Value,
+    punchline: serde_json::Value,
+    setup: serde_json::Value,
+}
+
 
 #[async_trait]
 impl EventHandler for Handler {
@@ -305,6 +325,39 @@ impl EventHandler for Handler {
             command.name("ping").description("A simple ping command")
         })
         .await;
+
+        let mut scheduler = AsyncScheduler::with_tz(chrono::Utc);
+        // Add some tasks to it
+        scheduler.every(1.day()).at("10:30 am").run(move || {
+            let ctx = ctx.clone();
+            async move {
+                let channel_id = ChannelId(1040719087585742980);
+                let client = reqwest::Client::new();
+
+                let mut headers = HeaderMap::new();
+                let rapid_api_key: String = env::var("RAPID_API_KEY").expect("Expected a token in the environment");
+                headers.insert("X-RapidAPI-Key", HeaderValue::from_str(&rapid_api_key).unwrap());
+                headers.insert("X-RapidAPI-Host", HeaderValue::from_str("dad-jokes.p.rapidapi.com").unwrap());
+
+                let http_response = client
+                .get("https://dad-jokes.p.rapidapi.com/random/joke")
+                .headers(headers)
+                .send()
+                .await.expect("Failed to request joke")
+                .json::<Response>()
+                .await.expect("Failed to parse joke");
+                println!("{:#?}", http_response.body);
+
+                let _ = channel_id.say(&ctx.http, format!("{}\n\n||{}||", http_response.body[0].setup.as_str().unwrap(), http_response.body[0].punchline.as_str().unwrap())).await;
+            }
+        });
+
+        tokio::spawn(async move {
+            loop {
+                scheduler.run_pending().await;
+                tokio::time::sleep(Duration::from_millis(100)).await;
+            }
+        });
     }
 }
 
