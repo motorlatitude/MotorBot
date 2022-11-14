@@ -5,7 +5,7 @@ use std::time::Duration;
 use reqwest;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Deserialize;
-use serde_json::{Result, Value};
+use serde_json;
 use rand::Rng;
 use dotenv::dotenv;
 use serenity::model::prelude::ChannelId;
@@ -17,7 +17,7 @@ use serenity::model::prelude::interaction::application_command::CommandDataOptio
 use tracing::{info, error, Level};
 use tracing_subscriber::FmtSubscriber;
 
-use clokwerk::{AsyncScheduler, TimeUnits, Job};
+use clokwerk::{AsyncScheduler, TimeUnits};
 
 use serenity::async_trait;
 use serenity::model::channel::Message;
@@ -86,7 +86,7 @@ impl EventHandler for Handler {
 
         let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553, 1040719087585742980];
 
-        if msg.attachments.len() > 0 || msg.content.contains("http") {
+        if msg.attachments.len() > 0 || msg.content.contains("http") || msg.channel_id.as_u64() == &1040719087585742980 {
             if channel_ids.contains(msg.channel_id.as_u64()) && msg.author.id.as_u64() != &169554882674556930 {
                 if let Err(why) = msg.react(&ctx, ReactionType::try_from("<:upvote:429449534389616641>").unwrap()).await {
                     error!("Failed to react to message {:?}", why);
