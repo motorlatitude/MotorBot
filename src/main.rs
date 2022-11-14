@@ -17,7 +17,7 @@ use serenity::model::prelude::interaction::application_command::CommandDataOptio
 use tracing::{info, error, Level};
 use tracing_subscriber::FmtSubscriber;
 
-use clokwerk::{AsyncScheduler, TimeUnits};
+use clokwerk::{AsyncScheduler, TimeUnits, Job};
 
 use serenity::async_trait;
 use serenity::model::channel::Message;
