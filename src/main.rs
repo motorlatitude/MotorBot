@@ -84,7 +84,7 @@ impl EventHandler for Handler {
             }
         }
 
-        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553];
+        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553, 1040719087585742980];
 
         if msg.attachments.len() > 0 || msg.content.contains("http") {
             if channel_ids.contains(msg.channel_id.as_u64()) && msg.author.id.as_u64() != &169554882674556930 {
@@ -100,7 +100,7 @@ impl EventHandler for Handler {
 
     async fn reaction_add(&self, ctx: Context, reaction: Reaction) {
         info!("Reaction Added");
-        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553];
+        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553, 1040719087585742980];
 
         if channel_ids.contains(reaction.channel_id.as_u64()) &&
             reaction.emoji == ReactionType::try_from("<:upvote:429449534389616641>").unwrap() &&
@@ -152,7 +152,7 @@ impl EventHandler for Handler {
 
     async fn reaction_remove(&self, ctx: Context, reaction: Reaction) {
         info!("Reaction Removed");
-        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553];
+        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553, 1040719087585742980];
 
         if channel_ids.contains(reaction.channel_id.as_u64()) &&
             reaction.emoji == ReactionType::try_from("<:upvote:429449534389616641>").unwrap() &&
@@ -319,7 +319,7 @@ impl EventHandler for Handler {
                 })
         }).await;
 
-        println!("I now have the following guild slash commands: {:#?}", commands);
+        //println!("I now have the following guild slash commands: {:#?}", commands);
 
         let _ = Command::create_global_application_command(&ctx.http, |command| {
             command.name("ping").description("A simple ping command")
