@@ -328,7 +328,8 @@ impl EventHandler for Handler {
 
         let mut scheduler = AsyncScheduler::with_tz(chrono::Utc);
         // Add some tasks to it
-        scheduler.every(1.day()).at("10:30 am").run(move || {
+        scheduler.every(5.minutes()).run(move || {
+        //scheduler.every(1.day()).at("10:30 am").run(move || {
             let ctx = ctx.clone();
             async move {
                 let channel_id = ChannelId(1040719087585742980);
