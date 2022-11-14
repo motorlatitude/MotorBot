@@ -84,9 +84,9 @@ impl EventHandler for Handler {
             }
         }
 
-        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553, 1040719087585742980];
+        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553];
 
-        if msg.attachments.len() > 0 || msg.content.contains("http") || msg.channel_id.as_u64() == &1040719087585742980 {
+        if msg.attachments.len() > 0 || msg.content.contains("http") {
             if channel_ids.contains(msg.channel_id.as_u64()) && msg.author.id.as_u64() != &169554882674556930 {
                 if let Err(why) = msg.react(&ctx, ReactionType::try_from("<:upvote:429449534389616641>").unwrap()).await {
                     error!("Failed to react to message {:?}", why);
@@ -328,8 +328,8 @@ impl EventHandler for Handler {
 
         let mut scheduler = AsyncScheduler::with_tz(chrono::Utc);
         // Add some tasks to it
-        scheduler.every(5.minutes()).run(move || {
-        //scheduler.every(1.day()).at("10:30 am").run(move || {
+        //scheduler.every(5.minutes()).run(move || {
+        scheduler.every(1.day()).at("10:30 am").run(move || {
             let ctx = ctx.clone();
             async move {
                 let channel_id = ChannelId(1040719087585742980);
