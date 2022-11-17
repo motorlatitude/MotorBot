@@ -297,7 +297,7 @@ impl EventHandler for Handler {
 
         let guild_id = GuildId(130734377066954752);
 
-        let commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
+        let _commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
             commands
                 .create_application_command(|command| {
                     command.name("time").description("Returns server time for MotorBot")
@@ -328,7 +328,7 @@ impl EventHandler for Handler {
 
         let mut scheduler = AsyncScheduler::with_tz(chrono::Utc);
         // Add some tasks to it
-        //scheduler.every(5.minutes()).run(move || {
+        // scheduler.every(5.minutes()).run(move || {
         scheduler.every(1.day()).at("10:30 am").run(move || {
             let ctx = ctx.clone();
             async move {
@@ -349,7 +349,13 @@ impl EventHandler for Handler {
                 .await.expect("Failed to parse joke");
                 println!("{:#?}", http_response.body);
 
-                let _ = channel_id.say(&ctx.http, format!("{}\n\n||{}||", http_response.body[0].setup.as_str().unwrap(), http_response.body[0].punchline.as_str().unwrap())).await;
+                let _ = channel_id.send_message(&ctx.http, |m| {
+                    m.content(format!("{}\n\n||{}||", http_response.body[0].setup.as_str().unwrap(), http_response.body[0].punchline.as_str().unwrap()))
+                     .reactions([
+                         ReactionType::try_from("<:upvote:429449534389616641>").unwrap(),
+                         ReactionType::try_from("<:downvote:429449638454493187>").unwrap()
+                     ])
+                }).await;
             }
         });
 
