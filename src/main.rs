@@ -17,6 +17,8 @@ use serenity::model::prelude::interaction::application_command::CommandDataOptio
 use tracing::{info, error, Level};
 use tracing_subscriber::FmtSubscriber;
 
+use oai_rs::{models, completions, images};
+
 use clokwerk::{AsyncScheduler, TimeUnits, Job};
 
 use serenity::async_trait;
@@ -37,7 +39,7 @@ struct Handler;
 #[derive(Deserialize, Debug)]
 struct Response {
     body: Vec<Joke>,
-    success: bool
+    //success: bool
 }
 
 #[derive(Deserialize, Debug)]
@@ -265,7 +267,52 @@ impl EventHandler for Handler {
                         score = uscore.score;
                     }
                     format!("{}'s score is {}", username, score)
-                }
+                },
+                "ai" => {
+                    let endpoint: String = command.data.options[0].value.as_ref().unwrap().as_str().unwrap().to_string();
+                    let prompt: String = command.data.options[1].value.as_ref().unwrap().as_str().unwrap().to_string();
+
+                    let mut message: String = String::from("Sorry, a response could not be generated for this prompt.");
+                    println!("Endpoint: {} {}", endpoint, endpoint.eq("completions"));
+
+                    if endpoint.eq("completions") {
+                        println!("Prompt: {}", prompt);
+                        let completions = completions::build(models::CompletionModels::TEXT_DAVINCI_003)
+                            .prompt(&prompt)
+                            .max_tokens(50)
+                            .user("MotorBot")
+                            .complete()
+                            .await;
+                        match completions {
+                            Ok(completions) => {
+                                message = completions.choices[0].text.as_str().to_string();
+                                format!("{}", message)
+                            },
+                            Err(why) => {
+                                println!("Error: {:?}", why);
+                                format!("Error: {:?}", why)
+                            }
+                        }
+                    } else if endpoint.eq("images") {
+                        let images = images::build()
+                            .generate(prompt)
+                            .user("MotorBot")
+                            .done()
+                            .await;
+                        match images {
+                            Ok(images) => {
+                                message = images.data[0].url.as_str().to_string();
+                                format!("{}", message)
+                            },
+                            Err(why) => {
+                                println!("Error: {:?}", why);
+                                format!("Error: {:?}", why)
+                            }
+                        }
+                    } else {
+                        format!("{}", message)
+                    }
+                },
                 _ => "not implemented :(".to_string(),
             };
 
@@ -317,6 +364,21 @@ impl EventHandler for Handler {
                             .required(false)
                     })
                 })
+                .create_application_command(|command| {
+                    command.name("ai").description("Allows you to interact with OpenAI").create_option(|option| {
+                        option
+                            .name("endpoint")
+                            .description("The type of interaction to use for OpenAI either `completions` or `images`")
+                            .kind(CommandOptionType::String)
+                            .required(true)
+                    }).create_option(|option| {
+                        option
+                            .name("prompt")
+                            .description("The prompt to use for OpenAI")
+                            .kind(CommandOptionType::String)
+                            .required(true)
+                    })
+                })
         }).await;
 
         //println!("I now have the following guild slash commands: {:#?}", commands);
@@ -341,13 +403,12 @@ impl EventHandler for Handler {
                 headers.insert("X-RapidAPI-Host", HeaderValue::from_str("dad-jokes.p.rapidapi.com").unwrap());
 
                 let http_response = client
-                .get("https://dad-jokes.p.rapidapi.com/random/joke")
-                .headers(headers)
-                .send()
-                .await.expect("Failed to request joke")
-                .json::<Response>()
-                .await.expect("Failed to parse joke");
-                println!("{:#?}", http_response.body);
+                    .get("https://dad-jokes.p.rapidapi.com/random/joke")
+                    .headers(headers)
+                    .send()
+                    .await.expect("Failed to request joke")
+                    .json::<Response>()
+                    .await.expect("Failed to parse joke");
 
                 let _ = channel_id.send_message(&ctx.http, |m| {
                     m.content(format!("{}\n\n||{}||", http_response.body[0].setup.as_str().unwrap(), http_response.body[0].punchline.as_str().unwrap()))
