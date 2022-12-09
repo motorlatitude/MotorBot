@@ -206,6 +206,7 @@ impl EventHandler for Handler {
 
     // Handle Slash Command Trigger
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+
         if let Interaction::ApplicationCommand(command) = interaction {
             println!("Received command interaction: {:#?}", command.data.name);
 
@@ -273,7 +274,7 @@ impl EventHandler for Handler {
                     let prompt: String = command.data.options[1].value.as_ref().unwrap().as_str().unwrap().to_string();
 
                     let mut message: String = String::from("Sorry, a response could not be generated for this prompt.");
-                    println!("Endpoint: {} {}", endpoint, endpoint.eq("completions"));
+                    println!("Endpoint: {} {}", endpoint, endpoint.eq("images"));
 
                     if endpoint.eq("completions") {
                         println!("Prompt: {}", prompt);
@@ -296,13 +297,18 @@ impl EventHandler for Handler {
                     } else if endpoint.eq("images") {
                         let images = images::build()
                             .generate(prompt)
+                            .size("256x256")
                             .user("MotorBot")
                             .done()
                             .await;
                         match images {
                             Ok(images) => {
                                 message = images.data[0].url.as_str().to_string();
-                                format!("{}", message)
+                                println!("Message: {}", message);
+                                let _result = command.create_followup_message(&ctx.http, |response| {
+                                    response.content(message)
+                                }).await;
+                                format!("")
                             },
                             Err(why) => {
                                 println!("Error: {:?}", why);
