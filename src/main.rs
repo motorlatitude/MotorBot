@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 use std::env;
+use std::thread;
 use std::u64;
 use std::time::Duration;
 use reqwest;
@@ -270,12 +271,44 @@ impl EventHandler for Handler {
                     format!("{}'s score is {}", username, score)
                 },
                 "ai" => {
-                    let endpoint: String = command.data.options[0].value.as_ref().unwrap().as_str().unwrap().to_string();
-                    let prompt: String = command.data.options[1].value.as_ref().unwrap().as_str().unwrap().to_string();
+                    format!("Generating response...")
+                },
+                _ => "not implemented :(".to_string(),
+            };
 
-                    let mut message: String = String::from("Sorry, a response could not be generated for this prompt.");
+            if command.data.name.as_str().ne("ai") {
+                if let Err(why) = command
+                    .create_interaction_response(&ctx.http, |response| {
+                        response
+                            .kind(InteractionResponseType::ChannelMessageWithSource)
+                            .interaction_response_data(|message| {
+                                message.content(content)
+                            })
+                    })
+                    .await
+                {
+                    println!("Cannot respond to slash command: {}", why);
+                }
+            } else {
+                // Send ephemeral message whilst dealing with AI request
+                if let Err(why) = command
+                    .create_interaction_response(&ctx.http, |response| {
+                        response
+                            .kind(InteractionResponseType::DeferredChannelMessageWithSource)
+                            .interaction_response_data(|message| {
+                                message
+                            })
+                    })
+                    .await
+                {
+                    println!("Cannot respond to slash command: {}", why);
+                }
+
+                let endpoint: String = command.data.options[0].value.as_ref().unwrap().as_str().unwrap().to_string();
+                let prompt: String = command.data.options[1].value.as_ref().unwrap().as_str().unwrap().to_string();
+
+                thread::spawn(move || async move {
                     println!("Endpoint: {} {}", endpoint, endpoint.eq("images"));
-
                     if endpoint.eq("completions") {
                         println!("Prompt: {}", prompt);
                         let completions = completions::build(models::CompletionModels::TEXT_DAVINCI_003)
@@ -286,12 +319,20 @@ impl EventHandler for Handler {
                             .await;
                         match completions {
                             Ok(completions) => {
-                                message = completions.choices[0].text.as_str().to_string();
-                                format!("{}", message)
+                                let message = completions.choices[0].text.as_str().to_string();
+                                if let Err(why) = command.create_followup_message(ctx.http, |f| {
+                                    f.content(message)
+                                }).await {
+                                    println!("Cannot respond to slash command: {}", why);
+                                }
                             },
                             Err(why) => {
                                 println!("Error: {:?}", why);
-                                format!("Error: {:?}", why)
+                                if let Err(why) = command.create_followup_message(ctx.http, |f| {
+                                    f.content(format!("Error: {:?}", why))
+                                }).await {
+                                    println!("Cannot respond to slash command: {}", why);
+                                }
                             }
                         }
                     } else if endpoint.eq("images") {
@@ -303,34 +344,29 @@ impl EventHandler for Handler {
                             .await;
                         match images {
                             Ok(images) => {
-                                message = images.data[0].url.as_str().to_string();
-                                println!("Message: {}", message);
-                                let _result = command.create_followup_message(&ctx.http, |response| {
-                                    response.content(message)
-                                }).await;
-                                format!("")
+                                let message = images.data[0].url.as_str().to_string();
+                                if let Err(why) = command.create_followup_message(ctx.http, |f| {
+                                    f.content(message)
+                                }).await {
+                                    println!("Cannot respond to slash command: {}", why);
+                                }
                             },
                             Err(why) => {
-                                println!("Error: {:?}", why);
-                                format!("Error: {:?}", why)
+                                if let Err(why) = command.create_followup_message(ctx.http, |f| {
+                                    f.content(format!("Error: {:?}", why))
+                                }).await {
+                                    println!("Cannot respond to slash command: {}", why);
+                                }
                             }
                         }
                     } else {
-                        format!("{}", message)
+                        if let Err(why) = command.create_followup_message(ctx.http, |f| {
+                            f.content("Error: Unknown Endpoint")
+                        }).await {
+                            println!("Cannot respond to slash command: {}", why);
+                        }
                     }
-                },
-                _ => "not implemented :(".to_string(),
-            };
-
-            if let Err(why) = command
-                .create_interaction_response(&ctx.http, |response| {
-                    response
-                        .kind(InteractionResponseType::ChannelMessageWithSource)
-                        .interaction_response_data(|message| message.content(content))
-                })
-                .await
-            {
-                println!("Cannot respond to slash command: {}", why);
+                });
             }
         }
     }
