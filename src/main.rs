@@ -1,6 +1,5 @@
 use std::convert::TryFrom;
 use std::env;
-use std::thread;
 use std::u64;
 use std::time::Duration;
 use reqwest;
@@ -290,7 +289,7 @@ impl EventHandler for Handler {
                     println!("Cannot respond to slash command: {}", why);
                 }
             } else {
-                // Send ephemeral message whilst dealing with AI request
+                // Send deferred message whilst dealing with AI
                 if let Err(why) = command
                     .create_interaction_response(&ctx.http, |response| {
                         response
@@ -307,66 +306,58 @@ impl EventHandler for Handler {
                 let endpoint: String = command.data.options[0].value.as_ref().unwrap().as_str().unwrap().to_string();
                 let prompt: String = command.data.options[1].value.as_ref().unwrap().as_str().unwrap().to_string();
 
-                thread::spawn(move || async move {
-                    println!("Endpoint: {} {}", endpoint, endpoint.eq("images"));
-                    if endpoint.eq("completions") {
-                        println!("Prompt: {}", prompt);
-                        let completions = completions::build(models::CompletionModels::TEXT_DAVINCI_003)
-                            .prompt(&prompt)
-                            .max_tokens(50)
-                            .user("MotorBot")
-                            .complete()
-                            .await;
-                        match completions {
-                            Ok(completions) => {
-                                let message = completions.choices[0].text.as_str().to_string();
-                                if let Err(why) = command.create_followup_message(ctx.http, |f| {
-                                    f.content(message)
-                                }).await {
-                                    println!("Cannot respond to slash command: {}", why);
-                                }
-                            },
-                            Err(why) => {
-                                println!("Error: {:?}", why);
-                                if let Err(why) = command.create_followup_message(ctx.http, |f| {
-                                    f.content(format!("Error: {:?}", why))
-                                }).await {
-                                    println!("Cannot respond to slash command: {}", why);
-                                }
+                println!("Endpoint: {} | Prompt: {}", endpoint, prompt);
+
+                if endpoint.eq("completions") {
+                    println!("Prompt: {}", prompt);
+                    let completions = completions::build(models::CompletionModels::TEXT_DAVINCI_003)
+                        .prompt(&prompt)
+                        .max_tokens(50)
+                        .user("MotorBot")
+                        .complete()
+                        .await;
+                    match completions {
+                        Ok(completions) => {
+                            let message = completions.choices[0].text.as_str().to_string();
+                            println!("Message: {}", message);
+                            if let Err(why) = command.create_followup_message(ctx.http, |f| {
+                                f.content(message)
+                            }).await {
+                                println!("Cannot respond to slash command: {}", why);
                             }
-                        }
-                    } else if endpoint.eq("images") {
-                        let images = images::build()
-                            .generate(prompt)
-                            .size("256x256")
-                            .user("MotorBot")
-                            .done()
-                            .await;
-                        match images {
-                            Ok(images) => {
-                                let message = images.data[0].url.as_str().to_string();
-                                if let Err(why) = command.create_followup_message(ctx.http, |f| {
-                                    f.content(message)
-                                }).await {
-                                    println!("Cannot respond to slash command: {}", why);
-                                }
-                            },
-                            Err(why) => {
-                                if let Err(why) = command.create_followup_message(ctx.http, |f| {
-                                    f.content(format!("Error: {:?}", why))
-                                }).await {
-                                    println!("Cannot respond to slash command: {}", why);
-                                }
-                            }
-                        }
-                    } else {
-                        if let Err(why) = command.create_followup_message(ctx.http, |f| {
-                            f.content("Error: Unknown Endpoint")
-                        }).await {
-                            println!("Cannot respond to slash command: {}", why);
+                        },
+                        Err(why) => {
+                            println!("Error: {:?}", why);
                         }
                     }
-                });
+                } else if endpoint.eq("images") {
+                    let images = images::build()
+                        .generate(prompt)
+                        .size("256x256")
+                        .user("MotorBot")
+                        .done()
+                        .await;
+                    match images {
+                        Ok(images) => {
+                            let message = images.data[0].url.as_str().to_string();
+                            println!("Message: {}", message);
+                            if let Err(why) = command.create_followup_message(ctx.http, |f| {
+                                f.content(message)
+                            }).await {
+                                println!("Cannot respond to slash command: {}", why);
+                            }
+                        },
+                        Err(why) => {
+                            println!("Error: {:?}", why);
+                        }
+                    }
+                } else {
+                    if let Err(why) = command.create_followup_message(ctx.http, |f| {
+                        f.content("Unknown Endpoint")
+                    }).await {
+                        println!("Cannot respond to slash command: {}", why);
+                    }
+                }
             }
         }
     }
