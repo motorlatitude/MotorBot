@@ -1,6 +1,8 @@
 # Builder Stage
 FROM ekidd/rust-musl-builder:latest as builder
 
+RUN rm -f ~/.cargo/registry
+
 WORKDIR /app
 COPY . .
 
