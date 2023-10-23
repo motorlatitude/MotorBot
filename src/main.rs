@@ -1,38 +1,41 @@
-use std::convert::TryFrom;
-use std::env;
-use std::u64;
-use std::time::Duration;
+use dotenv::dotenv;
+use rand::Rng;
 use reqwest;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Deserialize;
 use serde_json;
-use rand::Rng;
-use dotenv::dotenv;
+use serenity::model::application::command::Command;
+use serenity::model::application::command::CommandOptionType;
+use serenity::model::application::interaction::{Interaction, InteractionResponseType};
+use serenity::model::prelude::interaction::application_command::CommandDataOptionValue;
 use serenity::model::prelude::ChannelId;
 use serenity::model::prelude::GuildId;
-use serenity::model::application::command::{CommandOptionType};
-use serenity::model::application::interaction::{Interaction, InteractionResponseType};
-use serenity::model::application::command::Command;
-use serenity::model::prelude::interaction::application_command::CommandDataOptionValue;
-use tracing::{info, error, Level};
+use std::convert::TryFrom;
+use std::env;
+use std::time::Duration;
+use std::u64;
+use tracing::{error, info, Level};
 use tracing_subscriber::FmtSubscriber;
 
-use oai_rs::{models, completions, images};
+use oai_rs::{completions, images, models};
 
-use clokwerk::{AsyncScheduler, TimeUnits, Job};
+use clokwerk::{AsyncScheduler, Job, TimeUnits};
 
 use serenity::async_trait;
 use serenity::model::channel::Message;
-use serenity::model::gateway::Ready;
-use serenity::model::gateway::Activity;
 use serenity::model::channel::Reaction;
+use serenity::model::gateway::Activity;
+use serenity::model::gateway::Ready;
 use serenity::model::prelude::ReactionType;
 use serenity::model::user::OnlineStatus;
-use serenity::utils::MessageBuilder;
 use serenity::prelude::*;
+use serenity::utils::MessageBuilder;
 
 mod db;
 use crate::db::DBClient;
+
+mod plugins;
+use crate::plugins::patches::patches_plugin;
 
 struct Handler;
 
@@ -49,7 +52,6 @@ struct Joke {
     setup: serde_json::Value,
 }
 
-
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
@@ -65,8 +67,14 @@ impl EventHandler for Handler {
                 .push(format!("id            : {:?}\n", msg.author.id.as_u64()))
                 .push(format!("name          : {:?}\n", msg.author.name))
                 .push(format!("discriminator : {:?}\n", msg.author.discriminator))
-                .push(format!("avatar        : {:?}\n", msg.author.avatar.as_ref().unwrap()))
-                .push(format!("flags         : {:?}\n", msg.author.public_flags.unwrap()))
+                .push(format!(
+                    "avatar        : {:?}\n",
+                    msg.author.avatar.as_ref().unwrap()
+                ))
+                .push(format!(
+                    "flags         : {:?}\n",
+                    msg.author.public_flags.unwrap()
+                ))
                 .push(format!("accent colour : {:?}\n", msg.author.accent_colour))
                 .push(format!("banner        : {:?}\n", msg.author.banner))
                 .push("```")
@@ -78,22 +86,37 @@ impl EventHandler for Handler {
 
         if msg.content.contains("kys") {
             let response = MessageBuilder::new()
-            .push("Calm down before you hurt yourself ")
-            .user(msg.author.id)
-            .build();
+                .push("Calm down before you hurt yourself ")
+                .user(msg.author.id)
+                .build();
             if let Err(why) = msg.channel_id.say(&ctx.http, response).await {
                 error!("Error sending message: {:?}", why);
             }
         }
 
-        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553];
+        let channel_ids: Vec<u64> =
+            vec![130734377066954752, 955479936871825509, 438307738250903553];
 
         if msg.attachments.len() > 0 || msg.content.contains("http") {
-            if channel_ids.contains(msg.channel_id.as_u64()) && msg.author.id.as_u64() != &169554882674556930 {
-                if let Err(why) = msg.react(&ctx, ReactionType::try_from("<:upvote:429449534389616641>").unwrap()).await {
+            if channel_ids.contains(msg.channel_id.as_u64())
+                && msg.author.id.as_u64() != &169554882674556930
+            {
+                if let Err(why) = msg
+                    .react(
+                        &ctx,
+                        ReactionType::try_from("<:upvote:429449534389616641>").unwrap(),
+                    )
+                    .await
+                {
                     error!("Failed to react to message {:?}", why);
                 }
-                if let Err(why) = msg.react(&ctx, ReactionType::try_from("<:downvote:429449638454493187>").unwrap()).await {
+                if let Err(why) = msg
+                    .react(
+                        &ctx,
+                        ReactionType::try_from("<:downvote:429449638454493187>").unwrap(),
+                    )
+                    .await
+                {
                     error!("Failed to react to message {:?}", why);
                 }
             }
@@ -102,20 +125,40 @@ impl EventHandler for Handler {
 
     async fn reaction_add(&self, ctx: Context, reaction: Reaction) {
         info!("Reaction Added");
-        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553, 1040719087585742980];
+        let channel_ids: Vec<u64> = vec![
+            130734377066954752,
+            955479936871825509,
+            438307738250903553,
+            1040719087585742980,
+        ];
 
-        if channel_ids.contains(reaction.channel_id.as_u64()) &&
-            reaction.emoji == ReactionType::try_from("<:upvote:429449534389616641>").unwrap() &&
-            reaction.user_id.unwrap().as_u64() != &169554882674556930 {
+        if channel_ids.contains(reaction.channel_id.as_u64())
+            && reaction.emoji == ReactionType::try_from("<:upvote:429449534389616641>").unwrap()
+            && reaction.user_id.unwrap().as_u64() != &169554882674556930
+        {
             let user = reaction.user_id.unwrap(); // The user id of who upvoted
             let message_id = reaction.message_id; // The message id of the message that was upvoted
-            let message_user_id = ctx.http.get_message(*reaction.channel_id.as_u64(), *message_id.as_u64()).await.unwrap().author.id; // The user id of the message that was upvoted
+            let message_user_id = ctx
+                .http
+                .get_message(*reaction.channel_id.as_u64(), *message_id.as_u64())
+                .await
+                .unwrap()
+                .author
+                .id; // The user id of the message that was upvoted
 
-            info!("User {:?} upvoted message from user: {:?}", user, message_user_id);
+            info!(
+                "User {:?} upvoted message from user: {:?}",
+                user, message_user_id
+            );
 
             // Update Database
-            let db = DBClient::connect().await.expect("Failed to connect to database");
-            let user_score = db.fetch_user_score(message_user_id.as_u64()).await.expect("Failed to fetch user score");
+            let db = DBClient::connect()
+                .await
+                .expect("Failed to connect to database");
+            let user_score = db
+                .fetch_user_score(message_user_id.as_u64())
+                .await
+                .expect("Failed to fetch user score");
             if user_score.is_none() {
                 if let Err(why) = db.set_user_score(message_user_id.as_u64(), 1).await {
                     error!("Failed to set user score {:?}", why);
@@ -127,17 +170,32 @@ impl EventHandler for Handler {
                     error!("Failed to set user score {:?}", why);
                 }
             }
-        } else if channel_ids.contains(reaction.channel_id.as_u64()) &&
-                    reaction.emoji == ReactionType::try_from("<:downvote:429449638454493187>").unwrap() &&
-                    reaction.user_id.unwrap().as_u64() != &169554882674556930 {
+        } else if channel_ids.contains(reaction.channel_id.as_u64())
+            && reaction.emoji == ReactionType::try_from("<:downvote:429449638454493187>").unwrap()
+            && reaction.user_id.unwrap().as_u64() != &169554882674556930
+        {
             let user = reaction.user_id.unwrap(); // The user id of who upvoted
             let message_id = reaction.message_id; // The message id of the message that was upvoted
-            let message_user_id = ctx.http.get_message(*reaction.channel_id.as_u64(), *message_id.as_u64()).await.unwrap().author.id; // The user id of the message that was downvote
-            info!("User {:?} downvoted message from user: {:?}", user, message_user_id);
+            let message_user_id = ctx
+                .http
+                .get_message(*reaction.channel_id.as_u64(), *message_id.as_u64())
+                .await
+                .unwrap()
+                .author
+                .id; // The user id of the message that was downvote
+            info!(
+                "User {:?} downvoted message from user: {:?}",
+                user, message_user_id
+            );
 
             // Update Database
-            let db = DBClient::connect().await.expect("Failed to connect to database");
-            let user_score = db.fetch_user_score(message_user_id.as_u64()).await.expect("Failed to fetch user score");
+            let db = DBClient::connect()
+                .await
+                .expect("Failed to connect to database");
+            let user_score = db
+                .fetch_user_score(message_user_id.as_u64())
+                .await
+                .expect("Failed to fetch user score");
             if user_score.is_none() {
                 if let Err(why) = db.set_user_score(message_user_id.as_u64(), 0).await {
                     error!("Failed to set user score {:?}", why);
@@ -154,20 +212,40 @@ impl EventHandler for Handler {
 
     async fn reaction_remove(&self, ctx: Context, reaction: Reaction) {
         info!("Reaction Removed");
-        let channel_ids: Vec<u64> = vec![130734377066954752, 955479936871825509, 438307738250903553, 1040719087585742980];
+        let channel_ids: Vec<u64> = vec![
+            130734377066954752,
+            955479936871825509,
+            438307738250903553,
+            1040719087585742980,
+        ];
 
-        if channel_ids.contains(reaction.channel_id.as_u64()) &&
-            reaction.emoji == ReactionType::try_from("<:upvote:429449534389616641>").unwrap() &&
-            reaction.user_id.unwrap().as_u64() != &169554882674556930 {
+        if channel_ids.contains(reaction.channel_id.as_u64())
+            && reaction.emoji == ReactionType::try_from("<:upvote:429449534389616641>").unwrap()
+            && reaction.user_id.unwrap().as_u64() != &169554882674556930
+        {
             let user = reaction.user_id.unwrap(); // The user id of who upvoted
             let message_id = reaction.message_id; // The message id of the message that was upvoted
-            let message_user_id = ctx.http.get_message(*reaction.channel_id.as_u64(), *message_id.as_u64()).await.unwrap().author.id; // The user id of the message that was the upvote was removed from
+            let message_user_id = ctx
+                .http
+                .get_message(*reaction.channel_id.as_u64(), *message_id.as_u64())
+                .await
+                .unwrap()
+                .author
+                .id; // The user id of the message that was the upvote was removed from
 
-            info!("User {:?} upvoted message from user: {:?}", user, message_user_id);
+            info!(
+                "User {:?} upvoted message from user: {:?}",
+                user, message_user_id
+            );
 
             // Update Database
-            let db = DBClient::connect().await.expect("Failed to connect to database");
-            let user_score = db.fetch_user_score(message_user_id.as_u64()).await.expect("Failed to fetch user score");
+            let db = DBClient::connect()
+                .await
+                .expect("Failed to connect to database");
+            let user_score = db
+                .fetch_user_score(message_user_id.as_u64())
+                .await
+                .expect("Failed to fetch user score");
             if user_score.is_none() {
                 if let Err(why) = db.set_user_score(message_user_id.as_u64(), 0).await {
                     error!("Failed to set user score {:?}", why);
@@ -179,17 +257,32 @@ impl EventHandler for Handler {
                     error!("Failed to set user score {:?}", why);
                 }
             }
-        } else if channel_ids.contains(reaction.channel_id.as_u64()) &&
-                    reaction.emoji == ReactionType::try_from("<:downvote:429449638454493187>").unwrap() &&
-                    reaction.user_id.unwrap().as_u64() != &169554882674556930 {
+        } else if channel_ids.contains(reaction.channel_id.as_u64())
+            && reaction.emoji == ReactionType::try_from("<:downvote:429449638454493187>").unwrap()
+            && reaction.user_id.unwrap().as_u64() != &169554882674556930
+        {
             let user = reaction.user_id.unwrap(); // The user id of who upvoted
             let message_id = reaction.message_id; // The message id of the message that was upvoted
-            let message_user_id = ctx.http.get_message(*reaction.channel_id.as_u64(), *message_id.as_u64()).await.unwrap().author.id; // The user id of the message that was downvote was removed from
-            info!("User {:?} downvoted message from user: {:?}", user, message_user_id);
+            let message_user_id = ctx
+                .http
+                .get_message(*reaction.channel_id.as_u64(), *message_id.as_u64())
+                .await
+                .unwrap()
+                .author
+                .id; // The user id of the message that was downvote was removed from
+            info!(
+                "User {:?} downvoted message from user: {:?}",
+                user, message_user_id
+            );
 
             // Update Database
-            let db = DBClient::connect().await.expect("Failed to connect to database");
-            let user_score = db.fetch_user_score(message_user_id.as_u64()).await.expect("Failed to fetch user score");
+            let db = DBClient::connect()
+                .await
+                .expect("Failed to connect to database");
+            let user_score = db
+                .fetch_user_score(message_user_id.as_u64())
+                .await
+                .expect("Failed to fetch user score");
             if user_score.is_none() {
                 if let Err(why) = db.set_user_score(message_user_id.as_u64(), 1).await {
                     error!("Failed to set user score {:?}", why);
@@ -206,18 +299,15 @@ impl EventHandler for Handler {
 
     // Handle Slash Command Trigger
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-
         if let Interaction::ApplicationCommand(command) = interaction {
             println!("Received command interaction: {:#?}", command.data.name);
 
             let content = match command.data.name.as_str() {
                 "ping" => "Pong!".to_string(),
-                "time" => {
-                    MessageBuilder::new()
-                        .push(":alarm_clock: The current time for MotorBot is ")
-                        .push(format!("{:?}", chrono::Utc::now()))
-                        .build()
-                },
+                "time" => MessageBuilder::new()
+                    .push(":alarm_clock: The current time for MotorBot is ")
+                    .push(format!("{:?}", chrono::Utc::now()))
+                    .build(),
                 "roll" => {
                     let mut rng = rand::thread_rng();
                     let roll = rng.gen_range(1..100);
@@ -225,28 +315,21 @@ impl EventHandler for Handler {
                         .push("You rolled a ")
                         .push_bold_safe(roll)
                         .build()
-                },
+                }
                 "headsortails" => {
                     let mut rng = rand::thread_rng();
                     let roll = rng.gen_range(1..100);
                     if roll >= 50 {
-                        MessageBuilder::new()
-                            .push(":coin: Heads")
-                            .build()
+                        MessageBuilder::new().push(":coin: Heads").build()
                     } else {
-                        MessageBuilder::new()
-                            .push(":coin: Tails")
-                            .build()
+                        MessageBuilder::new().push(":coin: Tails").build()
                     }
-                },
+                }
                 "score" => {
                     let mut user_id = command.user.id.as_u64();
                     let mut username = command.user.tag();
 
-                    let options = command
-                        .data
-                        .options
-                        .get(0);
+                    let options = command.data.options.get(0);
                     println!("Options: {:?}", options);
                     if !options.is_none() {
                         let option = options
@@ -260,18 +343,23 @@ impl EventHandler for Handler {
                         }
                     }
 
-                    let db = DBClient::connect().await.expect("Failed to connect to database");
-                    let user_score = db.fetch_user_score(user_id).await.expect("Failed to fetch user score");
+                    let db = DBClient::connect()
+                        .await
+                        .expect("Failed to connect to database");
+                    let user_score = db
+                        .fetch_user_score(user_id)
+                        .await
+                        .expect("Failed to fetch user score");
                     let mut score = 0;
                     if !user_score.is_none() {
                         let uscore = user_score.unwrap();
                         score = uscore.score;
                     }
                     format!("{}'s score is {}", username, score)
-                },
+                }
                 "ai" => {
                     format!("Generating response...")
-                },
+                }
                 _ => "not implemented :(".to_string(),
             };
 
@@ -280,9 +368,7 @@ impl EventHandler for Handler {
                     .create_interaction_response(&ctx.http, |response| {
                         response
                             .kind(InteractionResponseType::ChannelMessageWithSource)
-                            .interaction_response_data(|message| {
-                                message.content(content)
-                            })
+                            .interaction_response_data(|message| message.content(content))
                     })
                     .await
                 {
@@ -294,38 +380,50 @@ impl EventHandler for Handler {
                     .create_interaction_response(&ctx.http, |response| {
                         response
                             .kind(InteractionResponseType::DeferredChannelMessageWithSource)
-                            .interaction_response_data(|message| {
-                                message
-                            })
+                            .interaction_response_data(|message| message)
                     })
                     .await
                 {
                     println!("Cannot respond to slash command: {}", why);
                 }
 
-                let endpoint: String = command.data.options[0].value.as_ref().unwrap().as_str().unwrap().to_string();
-                let prompt: String = command.data.options[1].value.as_ref().unwrap().as_str().unwrap().to_string();
+                let endpoint: String = command.data.options[0]
+                    .value
+                    .as_ref()
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string();
+                let prompt: String = command.data.options[1]
+                    .value
+                    .as_ref()
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string();
 
                 println!("Endpoint: {} | Prompt: {}", endpoint, prompt);
 
                 if endpoint.eq("completions") {
                     println!("Prompt: {}", prompt);
-                    let completions = completions::build(models::CompletionModels::TEXT_DAVINCI_003)
-                        .prompt(&prompt)
-                        .max_tokens(50)
-                        .user("MotorBot")
-                        .complete()
-                        .await;
+                    let completions =
+                        completions::build(models::CompletionModels::TEXT_DAVINCI_003)
+                            .prompt(&prompt)
+                            .max_tokens(50)
+                            .user("MotorBot")
+                            .complete()
+                            .await;
                     match completions {
                         Ok(completions) => {
                             let message = completions.choices[0].text.as_str().to_string();
                             println!("Message: {}", message);
-                            if let Err(why) = command.create_followup_message(ctx.http, |f| {
-                                f.content(message)
-                            }).await {
+                            if let Err(why) = command
+                                .create_followup_message(ctx.http, |f| f.content(message))
+                                .await
+                            {
                                 println!("Cannot respond to slash command: {}", why);
                             }
-                        },
+                        }
                         Err(why) => {
                             println!("Error: {:?}", why);
                         }
@@ -341,20 +439,22 @@ impl EventHandler for Handler {
                         Ok(images) => {
                             let message = images.data[0].url.as_str().to_string();
                             println!("Message: {}", message);
-                            if let Err(why) = command.create_followup_message(ctx.http, |f| {
-                                f.content(message)
-                            }).await {
+                            if let Err(why) = command
+                                .create_followup_message(ctx.http, |f| f.content(message))
+                                .await
+                            {
                                 println!("Cannot respond to slash command: {}", why);
                             }
-                        },
+                        }
                         Err(why) => {
                             println!("Error: {:?}", why);
                         }
                     }
                 } else {
-                    if let Err(why) = command.create_followup_message(ctx.http, |f| {
-                        f.content("Unknown Endpoint")
-                    }).await {
+                    if let Err(why) = command
+                        .create_followup_message(ctx.http, |f| f.content("Unknown Endpoint"))
+                        .await
+                    {
                         println!("Cannot respond to slash command: {}", why);
                     }
                 }
@@ -365,13 +465,22 @@ impl EventHandler for Handler {
     // Ready Event
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("{} is connected!", ready.user.name);
-        ctx.set_presence(Some(Activity::competing("Smooth Brain Marathon")), OnlineStatus::Online).await;
+        ctx.set_presence(
+            Some(Activity::competing("Smooth Brain Marathon")),
+            OnlineStatus::Online,
+        )
+        .await;
 
         let channel_id = ChannelId(432351112616738837);
 
-        if let Err(why) = channel_id.say(&ctx.http, "I'm back!").await {
+        if let Err(why) = channel_id
+            .say(&ctx.http, "MotorBot reporting for duty!")
+            .await
+        {
             error!("Error sending message: {:?}", why);
         }
+
+        let loaded_patch_plugin = patches_plugin::PatchesPlugin::new(ctx.clone()).await;
 
         // Register Slash Commands
 
@@ -423,7 +532,13 @@ impl EventHandler for Handler {
 
         let mut scheduler = AsyncScheduler::with_tz(chrono::Utc);
         // Add some tasks to it
-        // scheduler.every(5.minutes()).run(move || {
+        let inner_ctx = loaded_patch_plugin.clone();
+        scheduler.every(30.minutes()).run(move || {
+            let inner_inner_ctx = inner_ctx.clone();
+            async move {
+                inner_inner_ctx.update().await;
+            }
+        });
         scheduler.every(1.day()).at("10:30 am").run(move || {
             let ctx = ctx.clone();
             async move {
@@ -431,25 +546,40 @@ impl EventHandler for Handler {
                 let client = reqwest::Client::new();
 
                 let mut headers = HeaderMap::new();
-                let rapid_api_key: String = env::var("RAPID_API_KEY").expect("Expected a token in the environment");
-                headers.insert("X-RapidAPI-Key", HeaderValue::from_str(&rapid_api_key).unwrap());
-                headers.insert("X-RapidAPI-Host", HeaderValue::from_str("dad-jokes.p.rapidapi.com").unwrap());
+                let rapid_api_key: String =
+                    env::var("RAPID_API_KEY").expect("Expected a token in the environment");
+                headers.insert(
+                    "X-RapidAPI-Key",
+                    HeaderValue::from_str(&rapid_api_key).unwrap(),
+                );
+                headers.insert(
+                    "X-RapidAPI-Host",
+                    HeaderValue::from_str("dad-jokes.p.rapidapi.com").unwrap(),
+                );
 
                 let http_response = client
                     .get("https://dad-jokes.p.rapidapi.com/random/joke")
                     .headers(headers)
                     .send()
-                    .await.expect("Failed to request joke")
+                    .await
+                    .expect("Failed to request joke")
                     .json::<Response>()
-                    .await.expect("Failed to parse joke");
+                    .await
+                    .expect("Failed to parse joke");
 
-                let _ = channel_id.send_message(&ctx.http, |m| {
-                    m.content(format!("{}\n\n||{}||", http_response.body[0].setup.as_str().unwrap(), http_response.body[0].punchline.as_str().unwrap()))
-                     .reactions([
-                         ReactionType::try_from("<:upvote:429449534389616641>").unwrap(),
-                         ReactionType::try_from("<:downvote:429449638454493187>").unwrap()
-                     ])
-                }).await;
+                let _ = channel_id
+                    .send_message(&ctx.http, |m| {
+                        m.content(format!(
+                            "{}\n\n||{}||",
+                            http_response.body[0].setup.as_str().unwrap(),
+                            http_response.body[0].punchline.as_str().unwrap()
+                        ))
+                        .reactions([
+                            ReactionType::try_from("<:upvote:429449534389616641>").unwrap(),
+                            ReactionType::try_from("<:downvote:429449638454493187>").unwrap(),
+                        ])
+                    })
+                    .await;
             }
         });
 
@@ -470,7 +600,11 @@ async fn main() -> std::io::Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");
-    let intents = GatewayIntents::MESSAGE_CONTENT | GatewayIntents::DIRECT_MESSAGES | GatewayIntents::GUILD_MESSAGES | GatewayIntents::GUILD_MESSAGE_REACTIONS | GatewayIntents::DIRECT_MESSAGE_REACTIONS;
+    let intents = GatewayIntents::MESSAGE_CONTENT
+        | GatewayIntents::DIRECT_MESSAGES
+        | GatewayIntents::GUILD_MESSAGES
+        | GatewayIntents::GUILD_MESSAGE_REACTIONS
+        | GatewayIntents::DIRECT_MESSAGE_REACTIONS;
 
     let mut client = Client::builder(&token, intents)
         .event_handler(Handler)
@@ -481,5 +615,6 @@ async fn main() -> std::io::Result<()> {
     if let Err(why) = client.start().await {
         error!("Client error: {:?}", why);
     }
+
     Ok(())
 }
