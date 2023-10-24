@@ -1,24 +1,18 @@
-# Builder Stage
-FROM ekidd/rust-musl-builder:latest as builder
+FROM rust:slim AS builder
 
-RUN rm -f ~/.cargo/registry
+RUN apt-get update -y && \
+  apt-get install -y pkg-config make g++ libssl-dev && \
+  rustup target add x86_64-unknown-linux-gnu
 
 WORKDIR /app
 COPY . .
 
-# Add our source code.
-ADD --chown=rust:rust . ./
+RUN cargo build --release --target x86_64-unknown-linux-gnu
 
-# Build our application.
-RUN cargo build --release
 
-FROM scratch as runtime
-WORKDIR /app
+FROM debian:bookworm-slim
+RUN apt-get update -y && \
+  apt-get install -y pkg-config make g++ libssl-dev
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-
-COPY --from=builder /app/target/x86_64-unknown-linux-musl/release/motorbot ./
-
-ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
-ENV SSL_CERT_DIR=/etc/ssl/certs
-ENV APP_ENVIRONMENT production
-CMD ["/app/motorbot"]
+COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/motorbot /bin/motorbot
+ENTRYPOINT [ "/bin/motorbot" ]
