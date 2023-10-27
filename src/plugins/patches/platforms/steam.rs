@@ -63,6 +63,8 @@ impl Steam {
             .replace("[/i]", "*")
             .replace("[u]", "__")
             .replace("[/u]", "__")
+            .replace("[quote]", "> ")
+            .replace("[/quote]", "")
             .replace("\\n", "\n")
             .replace("[list]", "")
             .replace("[*]", "- ")

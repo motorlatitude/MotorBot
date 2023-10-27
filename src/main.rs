@@ -465,11 +465,28 @@ impl EventHandler for Handler {
     // Ready Event
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("{} is connected!", ready.user.name);
-        ctx.set_presence(
-            Some(Activity::competing("Smooth Brain Marathon")),
-            OnlineStatus::Online,
-        )
-        .await;
+        ctx.set_presence(Some(Activity::watching("you")), OnlineStatus::Online)
+            .await;
+
+        // let avatar = serenity::utils::read_image("./motorbot.png");
+        // match avatar {
+        //     Ok(av) => {
+        //         info!("Avatar read successfully");
+        //         let mut user = ctx.cache.current_user();
+        //         let avatar_edit = user.edit(&ctx.http, |p| p.avatar(Some(&av))).await;
+        //         match avatar_edit {
+        //             Ok(_) => {
+        //                 info!("Avatar updated successfully");
+        //             }
+        //             Err(why) => {
+        //                 error!("Error updating avatar: {:?}", why);
+        //             }
+        //         }
+        //     }
+        //     Err(why) => {
+        //         error!("Error reading avatar: {:?}", why);
+        //     }
+        // }
 
         let channel_id = ChannelId(432351112616738837);
 

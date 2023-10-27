@@ -1,4 +1,4 @@
-use super::platforms::{platform::Platform, steam::Steam};
+use super::platforms::{platform::Platform, riot::Riot, steam::Steam};
 
 pub struct PatchNotes {
     pub title: String,
@@ -18,6 +18,7 @@ impl PatchNotes {
     pub async fn fetch_for_platform(platform: Platform, game_id: &str) -> Self {
         match platform {
             Platform::Steam => Self::from_steam(game_id).await,
+            Platform::Riot => Self::from_riot(game_id).await,
             Platform::Unknown => Self::default(),
         }
     }
@@ -29,6 +30,22 @@ impl PatchNotes {
     async fn from_steam(game_id: &str) -> Self {
         let steam_platform = Steam::new();
         let notes = steam_platform.fetch(game_id).await;
+        match notes {
+            Some(n) => Self {
+                title: n.title,
+                content: n.content,
+                url: n.url,
+                image: n.image,
+                gid: n.gid,
+                success: true,
+            },
+            None => Self::default(),
+        }
+    }
+
+    async fn from_riot(game_id: &str) -> Self {
+        let riot_platform: Riot = Riot::new();
+        let notes = riot_platform.fetch(game_id).await;
         match notes {
             Some(n) => Self {
                 title: n.title,
