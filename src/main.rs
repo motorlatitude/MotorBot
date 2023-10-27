@@ -465,7 +465,7 @@ impl EventHandler for Handler {
     // Ready Event
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("{} is connected!", ready.user.name);
-        ctx.set_presence(Some(Activity::watching("you")), OnlineStatus::Online)
+        ctx.set_presence(Some(Activity::watching("you 👀")), OnlineStatus::Online)
             .await;
 
         // let avatar = serenity::utils::read_image("./motorbot.png");

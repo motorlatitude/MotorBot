@@ -5,7 +5,10 @@ use crate::{
     plugins::patches::{game_data::GameData, platforms::platform::Platform},
 };
 use serenity::{
-    model::prelude::{component, ChannelId},
+    model::{
+        prelude::{component, Activity, ChannelId},
+        user::OnlineStatus,
+    },
     prelude::*,
     utils::Colour,
 };
@@ -44,13 +47,19 @@ impl PatchesPlugin {
     /// Looks for new patch notes for games
     pub async fn update(&self) {
         info!("Updating sources...");
-        let channel_id = ChannelId(432351112616738837);
-        if let Err(why) = channel_id
-            .say(&self.ctx.http, "Updating Patch Sources...")
-            .await
-        {
-            error!("Error sending message: {:?}", why);
-        }
+        self.ctx
+            .set_presence(
+                Some(Activity::playing("Patches 🔃")),
+                OnlineStatus::DoNotDisturb,
+            )
+            .await;
+        // let channel_id = ChannelId(432351112616738837);
+        // if let Err(why) = channel_id
+        //     .say(&self.ctx.http, "Updating Patch Sources...")
+        //     .await
+        // {
+        //     error!("Error sending message: {:?}", why);
+        // }
         let db = DBClient::connect()
             .await
             .expect("Failed to connect to database");
@@ -79,6 +88,10 @@ impl PatchesPlugin {
                 info!("No new patch notes for {}", game_id);
             }
         }
+
+        self.ctx
+            .set_presence(Some(Activity::watching("you 👀")), OnlineStatus::Online)
+            .await;
     }
 
     /// Sends patch notes to a channel
