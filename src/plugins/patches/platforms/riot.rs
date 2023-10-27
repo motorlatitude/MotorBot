@@ -1,7 +1,7 @@
 use reqwest::StatusCode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 use voca_rs::*;
 
 pub struct Riot {}
@@ -17,12 +17,13 @@ pub struct RiotNews {
 
 // Riot URLs
 // League of legends and TFT use the same base URL
-const LOL_BASE_URL: &str = "https://www.leagueoflegends.com/page-data/en-gb";
-const LOL_URL: &str = "https://www.leagueoflegends.com/en-gb/";
+const LOL_BASE_PAGE_DATA_URL: &str = "https://www.leagueoflegends.com/page-data/en-gb";
+const LOL_BASE_URL: &str = "https://www.leagueoflegends.com/en-gb/";
 const LOL_LATEST_NEWS_ENDPOINT: &str = "/latest-news/page-data.json";
 // Valorant
-const VAL_BASE_URL: &str = "https://www.valorant.com/page-data/en-gb";
-const VAL_LATEST_NEWS_ENDPOINT: &str = "/latest-news/page-data.json";
+const VAL_BASE_PAGE_DATA_URL: &str = "https://www.playvalorant.com/page-data/en-gb";
+const VAL_BASE_URL: &str = "https://www.playvalorant.com/en-gb/";
+const VAL_LATEST_NEWS_ENDPOINT: &str = "/news/page-data.json";
 
 impl Riot {
     pub fn new() -> Self {
@@ -40,31 +41,35 @@ impl Riot {
         let article_list = self.request::<Value>(game_id, None).await;
         match article_list {
             Ok(n) => {
-                let articles = n["result"]["data"]["allArticles"]["edges"]
-                    .as_array()
-                    .unwrap();
                 let mut response = None;
-                for article in articles {
-                    let is_tft = self.check_if_tft(&article);
+                if game_id == "lol" || game_id == "tft" {
+                    let articles = n["result"]["data"]["allArticles"]["edges"]
+                        .as_array()
+                        .unwrap();
+                    for article in articles {
+                        let is_tft = self.check_if_tft(&article);
 
-                    if game_id == "lol" && is_tft {
-                        // skip TFT news
-                        continue;
-                    } else {
-                        let article_path = format!(
-                            "{}page-data.json",
-                            article["node"]["url"]["url"].to_string().replace("\"", "")
-                        );
-                        let article = self.request::<Value>(game_id, Some(&article_path)).await;
-                        match article {
-                            Ok(n) => response = self.parse_response(n),
-                            Err(e) => {
-                                error!("Error fetching Riot patch notes: {:?}", e);
-                                response = None
+                        if game_id == "lol" && is_tft {
+                            // skip TFT news
+                            continue;
+                        } else {
+                            let article_path = format!(
+                                "{}page-data.json",
+                                article["node"]["url"]["url"].to_string().replace("\"", "")
+                            );
+                            let article = self.request::<Value>(game_id, Some(&article_path)).await;
+                            match article {
+                                Ok(n) => response = self.parse_lol_response(n, game_id),
+                                Err(e) => {
+                                    error!("Error fetching Riot patch notes: {:?}", e);
+                                    response = None
+                                }
                             }
+                            break;
                         }
-                        break;
                     }
+                } else if game_id == "val" {
+                    response = self.parse_val_response(n);
                 }
                 response
             }
@@ -93,10 +98,61 @@ impl Riot {
     ///
     /// # Arguments
     /// - `response` - The response from Riot
+    /// - `game_id` - The Riot game id
     ///
     /// # Returns
     /// A `SteamNews` struct containing the patch notes
-    fn parse_response(&self, response: Value) -> Option<RiotNews> {
+    fn parse_val_response(&self, response: Value) -> Option<RiotNews> {
+        let patch_notes_title = response["result"]["data"]["allContentstackArticles"]["nodes"][0]
+            ["title"]
+            .to_string()
+            .replace("\"", "");
+        let parsed_content = response["result"]["data"]["allContentstackArticles"]["nodes"][0]
+            ["description"]
+            .to_string();
+        let trimmed_parsed_content = strip::strip_tags(
+            &parsed_content
+                .replace("\"", "")
+                .replace("\\\"", "\"")
+                .replace("\\n", "\n")
+                .replace("\\t", "\t"),
+        );
+        let gid = response["result"]["data"]["allContentstackArticles"]["nodes"][0]["uid"]
+            .to_string()
+            .replace("\"", "");
+        let patch_notes_url = response["result"]["data"]["allContentstackArticles"]["nodes"][0]
+            ["external_link"]
+            .to_string()
+            .replace("\"", "");
+        let rn = RiotNews {
+            title: patch_notes_title,
+            content: format!(
+                "{}{}",
+                &trimmed_parsed_content[0..std::cmp::min(trimmed_parsed_content.len(), 400)],
+                (trimmed_parsed_content.len() > 400)
+                    .then(|| "...")
+                    .unwrap_or("")
+            ),
+            url: patch_notes_url,
+            image: response["result"]["data"]["allContentstackArticles"]["nodes"][0]["banner"]
+                ["url"]
+                .to_string()
+                .replace("\"", ""),
+            gid,
+        };
+        //info!("Riot Val patch notes: {:?}", rn);
+        Some(rn)
+    }
+
+    /// Parses the response from Riot into a `RiotNews` struct
+    ///
+    /// # Arguments
+    /// - `response` - The response from Riot
+    /// - `game_id` - The Riot game id
+    ///
+    /// # Returns
+    /// A `SteamNews` struct containing the patch notes
+    fn parse_lol_response(&self, response: Value, game_id: &str) -> Option<RiotNews> {
         let patch_notes_title = response["result"]["data"]["all"]["nodes"][0]["title"]
             .to_string()
             .replace("\"", "");
@@ -129,7 +185,9 @@ impl Riot {
             .replace("\"", "");
         let patch_notes_url = format!(
             "{}{}",
-            LOL_URL,
+            (game_id == "lol" || game_id == "tft")
+                .then(|| LOL_BASE_URL)
+                .unwrap_or(VAL_BASE_URL),
             response["result"]["data"]["all"]["nodes"][0]["url"]["url"]
                 .to_string()
                 .replace("\"", "")
@@ -149,7 +207,7 @@ impl Riot {
                 .replace("\"", ""),
             gid,
         };
-        info!("Riot patch notes: {:?}", rn);
+        //info!("Riot patch notes: {:?}", rn);
         Some(rn)
     }
 
@@ -162,11 +220,11 @@ impl Riot {
         T: DeserializeOwned,
     {
         let client = reqwest::Client::new();
-        let mut url = format!("{}{}", LOL_BASE_URL, LOL_LATEST_NEWS_ENDPOINT);
+        let mut url = format!("{}{}", LOL_BASE_PAGE_DATA_URL, LOL_LATEST_NEWS_ENDPOINT);
         if game_id == "lol" {
             url = format!(
                 "{}{}",
-                LOL_BASE_URL,
+                LOL_BASE_PAGE_DATA_URL,
                 article_path
                     .is_some()
                     .then(|| article_path.unwrap())
@@ -175,7 +233,7 @@ impl Riot {
         } else if game_id == "tft" {
             url = format!(
                 "{}{}",
-                LOL_BASE_URL,
+                LOL_BASE_PAGE_DATA_URL,
                 article_path
                     .is_some()
                     .then(|| article_path.unwrap())
@@ -184,7 +242,7 @@ impl Riot {
         } else if game_id == "val" {
             url = format!(
                 "{}{}",
-                VAL_BASE_URL,
+                VAL_BASE_PAGE_DATA_URL,
                 article_path
                     .is_some()
                     .then(|| article_path.unwrap())
