@@ -3,7 +3,7 @@ use std::{fmt, str::FromStr};
 use reqwest::StatusCode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 use voca_rs::*;
 
 /// A struct containing the Riot game id
@@ -112,11 +112,15 @@ impl Riot {
                             if game_id == "lol" && is_tft {
                                 // skip TFT news
                                 continue;
-                            } else {
+                            } else if article["node"]["external_link"].as_str().unwrap_or("") == ""
+                                && article["node"]["youtube_link"].as_str().unwrap_or("") == ""
+                            {
+                                // articles with no external links need extra processing and need to be fetched
                                 let article_path = format!(
                                     "{}page-data.json",
                                     article["node"]["url"]["url"].as_str().unwrap_or("")
                                 );
+                                // info!("Article path: {}", article_path);
                                 let article =
                                     self.request::<Value>(game_id, Some(&article_path)).await;
                                 match article {
@@ -127,6 +131,45 @@ impl Riot {
                                     }
                                 }
                                 break;
+                            } else if (game_id == "lol" && !is_tft) || (game_id == "tft" && is_tft)
+                            {
+                                // Articles with external links can be parsed immediately as they don't have an
+                                // article body
+                                // info!(
+                                //     "External link: {}",
+                                //     article["node"]["external_link"].as_str().unwrap_or("")
+                                // );
+                                let patch_notes_title =
+                                    article["node"]["title"].as_str().unwrap_or("");
+                                let parsed_content =
+                                    article["node"]["description"].as_str().unwrap_or("");
+                                let stripped_parsed_content = strip::strip_tags(parsed_content);
+                                let trimmed_parsed_content = stripped_parsed_content.trim();
+                                let gid = article["node"]["uid"].as_str().unwrap_or("");
+                                let mut patch_notes_url =
+                                    article["node"]["external_link"].as_str().unwrap_or("");
+                                if patch_notes_url == "" {
+                                    patch_notes_url =
+                                        article["node"]["youtube_link"].as_str().unwrap_or("");
+                                }
+                                let rn = RiotNews {
+                                    title: String::from(patch_notes_title),
+                                    content: format!(
+                                        "{}{}",
+                                        &trimmed_parsed_content
+                                            [0..std::cmp::min(trimmed_parsed_content.len(), 400)],
+                                        (trimmed_parsed_content.len() > 400)
+                                            .then(|| "...")
+                                            .unwrap_or("")
+                                    ),
+                                    url: String::from(patch_notes_url),
+                                    image: String::from(
+                                        article["node"]["banner"]["url"].as_str().unwrap_or(""),
+                                    ),
+                                    gid: String::from(gid),
+                                };
+                                response = Some(rn);
+                                break;
                             }
                         }
                     }
@@ -135,6 +178,7 @@ impl Riot {
                     }
                     RiotGameId::Unknown => {}
                 }
+                // info!("Riot patch notes: {:?}", response);
                 response
             }
             Err(e) => {
@@ -213,7 +257,6 @@ impl Riot {
             ),
             gid: String::from(gid),
         };
-        //info!("Riot Val patch notes: {:?}", rn);
         Some(rn)
     }
 
@@ -291,7 +334,6 @@ impl Riot {
             ),
             gid: String::from(gid),
         };
-        //info!("Riot patch notes: {:?}", rn);
         Some(rn)
     }
 
