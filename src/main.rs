@@ -52,6 +52,17 @@ struct Joke {
     setup: serde_json::Value,
 }
 
+pub enum MotorbotChannels {
+    General = 130734377066954752,
+    BotEvents = 432351112616738837,
+    PatchNotes = 438307738250903553,
+    Jokes = 1040719087585742980,
+}
+
+pub enum MotorBotGuilds {
+    MotorBot = 130734377066954752,
+}
+
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
@@ -94,8 +105,11 @@ impl EventHandler for Handler {
             }
         }
 
-        let channel_ids: Vec<u64> =
-            vec![130734377066954752, 955479936871825509, 438307738250903553];
+        let channel_ids: Vec<u64> = vec![
+            MotorbotChannels::General as u64,
+            MotorbotChannels::PatchNotes as u64,
+            MotorbotChannels::Jokes as u64,
+        ];
 
         if msg.attachments.len() > 0 || msg.content.contains("http") {
             if channel_ids.contains(msg.channel_id.as_u64())
@@ -126,10 +140,9 @@ impl EventHandler for Handler {
     async fn reaction_add(&self, ctx: Context, reaction: Reaction) {
         info!("Reaction Added");
         let channel_ids: Vec<u64> = vec![
-            130734377066954752,
-            955479936871825509,
-            438307738250903553,
-            1040719087585742980,
+            MotorbotChannels::General as u64,
+            MotorbotChannels::PatchNotes as u64,
+            MotorbotChannels::Jokes as u64,
         ];
 
         if channel_ids.contains(reaction.channel_id.as_u64())
@@ -213,10 +226,9 @@ impl EventHandler for Handler {
     async fn reaction_remove(&self, ctx: Context, reaction: Reaction) {
         info!("Reaction Removed");
         let channel_ids: Vec<u64> = vec![
-            130734377066954752,
-            955479936871825509,
-            438307738250903553,
-            1040719087585742980,
+            MotorbotChannels::General as u64,
+            MotorbotChannels::PatchNotes as u64,
+            MotorbotChannels::Jokes as u64,
         ];
 
         if channel_ids.contains(reaction.channel_id.as_u64())
@@ -488,7 +500,7 @@ impl EventHandler for Handler {
         //     }
         // }
 
-        let channel_id = ChannelId(432351112616738837);
+        let channel_id = ChannelId(MotorbotChannels::BotEvents as u64);
 
         if let Err(why) = channel_id
             .say(&ctx.http, "MotorBot reporting for duty!")
@@ -501,7 +513,7 @@ impl EventHandler for Handler {
 
         // Register Slash Commands
 
-        let guild_id = GuildId(130734377066954752);
+        let guild_id = GuildId(MotorBotGuilds::MotorBot as u64);
 
         let _commands = GuildId::set_application_commands(&guild_id, &ctx.http, |commands| {
             commands
@@ -559,7 +571,7 @@ impl EventHandler for Handler {
         scheduler.every(1.day()).at("10:30 am").run(move || {
             let ctx = ctx.clone();
             async move {
-                let channel_id = ChannelId(1040719087585742980);
+                let channel_id = ChannelId(MotorbotChannels::Jokes as u64);
                 let client = reqwest::Client::new();
 
                 let mut headers = HeaderMap::new();

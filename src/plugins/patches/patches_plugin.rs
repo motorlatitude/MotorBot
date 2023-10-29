@@ -3,6 +3,7 @@ use std::str::FromStr;
 use crate::{
     db::DBClient,
     plugins::patches::{game_data::GameData, platforms::platform::Platform},
+    MotorbotChannels,
 };
 use serenity::{
     model::{
@@ -24,7 +25,7 @@ pub struct PatchesPlugin {
 impl PatchesPlugin {
     pub async fn new(ctx: Context) -> Self {
         info!("Starting Patches Plugin");
-        let channel_id = ChannelId(432351112616738837);
+        let channel_id = ChannelId(MotorbotChannels::BotEvents as u64);
         if let Err(why) = channel_id.say(&ctx.http, "Launching Patches Plugin").await {
             error!("Error sending message: {:?}", why);
         }
@@ -106,7 +107,7 @@ impl PatchesPlugin {
         platform_data: PatchNotes,
         game_data: GameData,
     ) {
-        let channel_id = ChannelId(438307738250903553);
+        let channel_id = ChannelId(MotorbotChannels::PatchNotes as u64);
         if let Err(why) = channel_id
             .send_message(&self.ctx.http, |m| {
                 m.content("")

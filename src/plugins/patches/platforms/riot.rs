@@ -3,7 +3,7 @@ use std::{fmt, str::FromStr};
 use reqwest::StatusCode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 use voca_rs::*;
 
 /// A struct containing the Riot game id
