@@ -3,7 +3,7 @@ use std::{fmt, str::FromStr};
 use reqwest::StatusCode;
 use serde::de::DeserializeOwned;
 use serde_json::Value;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 use voca_rs::*;
 
 /// A struct containing the Riot game id
@@ -79,7 +79,7 @@ const LOL_LATEST_NEWS_ENDPOINT: &str = "/latest-news/page-data.json";
 /// Valorant's base page data url
 const VAL_BASE_PAGE_DATA_URL: &str = "https://www.playvalorant.com/page-data/en-gb";
 /// Valorant's base url
-const VAL_BASE_URL: &str = "https://www.playvalorant.com/en-gb/";
+const VAL_BASE_URL: &str = "https://www.playvalorant.com/en-gb";
 /// Valorant's latest news endpoint
 const VAL_LATEST_NEWS_ENDPOINT: &str = "/news/page-data.json";
 
@@ -178,7 +178,7 @@ impl Riot {
                     }
                     RiotGameId::Unknown => {}
                 }
-                // info!("Riot patch notes: {:?}", response);
+                info!("Riot patch notes: {:?}", response);
                 response
             }
             Err(e) => {
@@ -236,10 +236,20 @@ impl Riot {
         let gid = response["result"]["data"]["allContentstackArticles"]["nodes"][0]["uid"]
             .as_str()
             .unwrap_or("");
-        let patch_notes_url = response["result"]["data"]["allContentstackArticles"]["nodes"][0]
-            ["external_link"]
-            .as_str()
-            .unwrap_or("");
+        let mut patch_notes_url = String::from(
+            response["result"]["data"]["allContentstackArticles"]["nodes"][0]["external_link"]
+                .as_str()
+                .unwrap_or(""),
+        );
+        if patch_notes_url == "" {
+            patch_notes_url = format!(
+                "{}{}",
+                VAL_BASE_URL,
+                response["result"]["data"]["allContentstackArticles"]["nodes"][0]["url"]["url"]
+                    .as_str()
+                    .unwrap_or("")
+            );
+        }
         let rn = RiotNews {
             title: String::from(patch_notes_title),
             content: format!(
@@ -249,7 +259,7 @@ impl Riot {
                     .then(|| "...")
                     .unwrap_or("")
             ),
-            url: String::from(patch_notes_url),
+            url: patch_notes_url,
             image: String::from(
                 response["result"]["data"]["allContentstackArticles"]["nodes"][0]["banner"]["url"]
                     .as_str()
