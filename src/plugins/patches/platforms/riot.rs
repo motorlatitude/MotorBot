@@ -110,66 +110,71 @@ impl Riot {
                             let is_tft = self.check_if_tft(&article);
 
                             if game_id == "lol" && is_tft {
-                                // skip TFT news
+                                // skip TFT news for LoL
                                 continue;
-                            } else if article["node"]["external_link"].as_str().unwrap_or("") == ""
-                                && article["node"]["youtube_link"].as_str().unwrap_or("") == ""
-                            {
-                                // articles with no external links need extra processing and need to be fetched
-                                let article_path = format!(
-                                    "{}page-data.json",
-                                    article["node"]["url"]["url"].as_str().unwrap_or("")
-                                );
-                                // info!("Article path: {}", article_path);
-                                let article =
-                                    self.request::<Value>(game_id, Some(&article_path)).await;
-                                match article {
-                                    Ok(n) => response = self.parse_lol_response(n, game_id),
-                                    Err(e) => {
-                                        error!("Error fetching Riot patch notes: {:?}", e);
-                                        response = None
-                                    }
-                                }
-                                break;
                             } else if (game_id == "lol" && !is_tft) || (game_id == "tft" && is_tft)
                             {
-                                // Articles with external links can be parsed immediately as they don't have an
-                                // article body
-                                // info!(
-                                //     "External link: {}",
-                                //     article["node"]["external_link"].as_str().unwrap_or("")
-                                // );
-                                let patch_notes_title =
-                                    article["node"]["title"].as_str().unwrap_or("");
-                                let parsed_content =
-                                    article["node"]["description"].as_str().unwrap_or("");
-                                let stripped_parsed_content = strip::strip_tags(parsed_content);
-                                let trimmed_parsed_content = stripped_parsed_content.trim();
-                                let gid = article["node"]["uid"].as_str().unwrap_or("");
-                                let mut patch_notes_url =
-                                    article["node"]["external_link"].as_str().unwrap_or("");
-                                if patch_notes_url == "" {
-                                    patch_notes_url =
-                                        article["node"]["youtube_link"].as_str().unwrap_or("");
+                                if article["node"]["external_link"].as_str().unwrap_or("") == ""
+                                    && article["node"]["youtube_link"].as_str().unwrap_or("") == ""
+                                {
+                                    // if the article has no external link and is a LoL article
+                                    // articles with no external links need extra processing and need to be fetched
+                                    let article_path = format!(
+                                        "{}page-data.json",
+                                        article["node"]["url"]["url"].as_str().unwrap_or("")
+                                    );
+                                    // info!("Article path: {}", article_path);
+                                    let article =
+                                        self.request::<Value>(game_id, Some(&article_path)).await;
+                                    match article {
+                                        Ok(n) => response = self.parse_lol_response(n, game_id),
+                                        Err(e) => {
+                                            error!("Error fetching Riot patch notes: {:?}", e);
+                                            response = None
+                                        }
+                                    }
+                                    break;
+                                } else {
+                                    // Articles with external links can be parsed immediately as they don't have an
+                                    // article body
+                                    // info!(
+                                    //     "External link: {}",
+                                    //     article["node"]["external_link"].as_str().unwrap_or("")
+                                    // );
+                                    let patch_notes_title =
+                                        article["node"]["title"].as_str().unwrap_or("");
+                                    let parsed_content =
+                                        article["node"]["description"].as_str().unwrap_or("");
+                                    let stripped_parsed_content = strip::strip_tags(parsed_content);
+                                    let trimmed_parsed_content = stripped_parsed_content.trim();
+                                    let gid = article["node"]["uid"].as_str().unwrap_or("");
+                                    let mut patch_notes_url =
+                                        article["node"]["external_link"].as_str().unwrap_or("");
+                                    if patch_notes_url == "" {
+                                        patch_notes_url =
+                                            article["node"]["youtube_link"].as_str().unwrap_or("");
+                                    }
+                                    let rn = RiotNews {
+                                        title: String::from(patch_notes_title),
+                                        content: format!(
+                                            "{}{}",
+                                            &trimmed_parsed_content[0..std::cmp::min(
+                                                trimmed_parsed_content.len(),
+                                                400
+                                            )],
+                                            (trimmed_parsed_content.len() > 400)
+                                                .then(|| "...")
+                                                .unwrap_or("")
+                                        ),
+                                        url: String::from(patch_notes_url),
+                                        image: String::from(
+                                            article["node"]["banner"]["url"].as_str().unwrap_or(""),
+                                        ),
+                                        gid: String::from(gid),
+                                    };
+                                    response = Some(rn);
+                                    break;
                                 }
-                                let rn = RiotNews {
-                                    title: String::from(patch_notes_title),
-                                    content: format!(
-                                        "{}{}",
-                                        &trimmed_parsed_content
-                                            [0..std::cmp::min(trimmed_parsed_content.len(), 400)],
-                                        (trimmed_parsed_content.len() > 400)
-                                            .then(|| "...")
-                                            .unwrap_or("")
-                                    ),
-                                    url: String::from(patch_notes_url),
-                                    image: String::from(
-                                        article["node"]["banner"]["url"].as_str().unwrap_or(""),
-                                    ),
-                                    gid: String::from(gid),
-                                };
-                                response = Some(rn);
-                                break;
                             }
                         }
                     }
