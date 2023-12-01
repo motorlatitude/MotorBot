@@ -117,7 +117,7 @@ impl Riot {
                                 if article["node"]["external_link"].as_str().unwrap_or("") == ""
                                     && article["node"]["youtube_link"].as_str().unwrap_or("") == ""
                                 {
-                                    // if the article has no external link and is a LoL article
+                                    // if the article has no external link, it's a normal article
                                     // articles with no external links need extra processing and need to be fetched
                                     let article_path = format!(
                                         "{}page-data.json",
@@ -336,7 +336,7 @@ impl Riot {
             title: String::from(patch_notes_title),
             content: format!(
                 "{}{}",
-                &trimmed_parsed_content[0..std::cmp::min(trimmed_parsed_content.len(), 400)],
+                &trimmed_parsed_content[0..std::cmp::min(trimmed_parsed_content.len(), 399)],
                 (trimmed_parsed_content.len() > 400)
                     .then(|| "...")
                     .unwrap_or("")
