@@ -337,7 +337,7 @@ impl Riot {
             content: format!(
                 "{}{}",
                 &trimmed_parsed_content[0..std::cmp::min(trimmed_parsed_content.len(), 399)],
-                (trimmed_parsed_content.len() > 400)
+                (trimmed_parsed_content.len() > 399)
                     .then(|| "...")
                     .unwrap_or("")
             ),
