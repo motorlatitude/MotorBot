@@ -1,6 +1,8 @@
 services:
   runtime:
-    build: . 
     env_file:
-    - path: ./stack.env
-      required: true # default
+      - path: ./stack.env
+        required: false
+      - path: ./.env
+        required: false
+    build: .
