@@ -15,7 +15,7 @@ use std::convert::TryFrom;
 use std::env;
 use std::time::Duration;
 use std::u64;
-use tracing::{debug, error, info, Level};
+use tracing::{debug, error, info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
 use version_check::Version;
 
@@ -617,12 +617,18 @@ async fn main() -> std::io::Result<()> {
         .event_handler(Handler)
         .await
         .expect("Err creating client");
-    let rustc_version = Version::read().unwrap().to_string();
     const VERSION: &str = env!("CARGO_PKG_VERSION");
-    info!(
-        "Starting MotorBot v{} using rustc v{}",
-        VERSION, rustc_version
-    );
+    match Version::read() {
+        Some(v) => {
+            info!("Starting MotorBot v{} using rustc v{}", VERSION, v);
+        }
+        None => {
+            warn!(
+                "Starting MotorBot v{} using an unknown rustc version",
+                VERSION
+            );
+        }
+    }
     if let Err(why) = client.start().await {
         error!("Client error: {:?}", why);
     }
