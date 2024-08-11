@@ -15,8 +15,9 @@ use std::convert::TryFrom;
 use std::env;
 use std::time::Duration;
 use std::u64;
-use tracing::{error, info, Level};
+use tracing::{debug, error, info, Level};
 use tracing_subscriber::FmtSubscriber;
+use version_check::Version;
 
 use oai_rs::{completions, images, models};
 
@@ -66,7 +67,7 @@ pub enum MotorBotGuilds {
 #[async_trait]
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
-        info!("Message");
+        debug!("Message");
         // println!("{}: {}\nAttachments: {}", msg.author.name, msg.content, msg.attachments.len());
         if msg.content == "!ping" {
             if let Err(why) = msg.channel_id.say(&ctx.http, "Pong!").await {
@@ -616,8 +617,12 @@ async fn main() -> std::io::Result<()> {
         .event_handler(Handler)
         .await
         .expect("Err creating client");
-
-    info!("Starting MotorBot");
+    let rustc_version = Version::read().unwrap().to_string();
+    const VERSION: &str = env!("CARGO_PKG_VERSION");
+    info!(
+        "Starting MotorBot v{} using rustc v{}",
+        VERSION, rustc_version
+    );
     if let Err(why) = client.start().await {
         error!("Client error: {:?}", why);
     }

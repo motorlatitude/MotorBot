@@ -1241,6 +1241,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "version_check",
 ]
 
 [[package]]
