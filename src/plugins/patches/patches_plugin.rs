@@ -6,14 +6,14 @@ use crate::{
     MotorbotChannels,
 };
 use serenity::{
-    model::{
-        prelude::{component, Activity, ChannelId},
-        user::OnlineStatus,
+    all::{
+        ActivityData, Colour, CreateActionRow, CreateButton, CreateEmbed, CreateEmbedAuthor,
+        CreateEmbedFooter, CreateMessage, Timestamp,
     },
+    model::{prelude::ChannelId, user::OnlineStatus},
     prelude::*,
-    utils::Colour,
 };
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use super::patch_notes::PatchNotes;
 
@@ -25,7 +25,7 @@ pub struct PatchesPlugin {
 impl PatchesPlugin {
     pub async fn new(ctx: Context) -> Self {
         info!("Starting Patches Plugin");
-        let channel_id = ChannelId(MotorbotChannels::BotEvents as u64);
+        let channel_id = ChannelId::new(MotorbotChannels::BotEvents as u64);
         if let Err(why) = channel_id.say(&ctx.http, "Launching Patches Plugin").await {
             error!("Error sending message: {:?}", why);
         }
@@ -48,12 +48,10 @@ impl PatchesPlugin {
     /// Looks for new patch notes for games
     pub async fn update(&self) {
         info!("Updating sources...");
-        self.ctx
-            .set_presence(
-                Some(Activity::playing("Patches 🔃")),
-                OnlineStatus::DoNotDisturb,
-            )
-            .await;
+        self.ctx.set_presence(
+            Some(ActivityData::playing("Patches 🔃")),
+            OnlineStatus::DoNotDisturb,
+        );
         // let channel_id = ChannelId(432351112616738837);
         // if let Err(why) = channel_id
         //     .say(&self.ctx.http, "Updating Patch Sources...")
@@ -91,8 +89,7 @@ impl PatchesPlugin {
         }
 
         self.ctx
-            .set_presence(Some(Activity::watching("you 👀")), OnlineStatus::Online)
-            .await;
+            .set_presence(Some(ActivityData::watching("you 👀")), OnlineStatus::Online);
     }
 
     /// Sends patch notes to a channel
@@ -107,12 +104,27 @@ impl PatchesPlugin {
         platform_data: PatchNotes,
         game_data: GameData,
     ) {
-        let channel_id = ChannelId(MotorbotChannels::PatchNotes as u64);
+        if platform_data.success == false {
+            warn!("Patch notes failed to fetch for {}", game_data.game_id);
+            return;
+        }
+        let channel_id = ChannelId::new(MotorbotChannels::PatchNotes as u64);
+        let mut action_row = vec![CreateActionRow::Buttons(vec![CreateButton::new_link(
+            &platform_data.url,
+        )
+        .label("Patch Notes")])];
+        // Clear the action row if the url is empty
+        if platform_data.url.is_empty() {
+            action_row.clear();
+        }
         if let Err(why) = channel_id
-            .send_message(&self.ctx.http, |m| {
-                m.content("")
-                    .embed(|e| {
-                        e.title(&platform_data.title)
+            .send_message(
+                &self.ctx.http,
+                CreateMessage::new()
+                    .content("")
+                    .embed(
+                        CreateEmbed::new()
+                            .title(&platform_data.title)
                             .description(&platform_data.content)
                             //.thumbnail(&game_data.thumbnail)
                             .color(Colour::new(
@@ -120,21 +132,15 @@ impl PatchesPlugin {
                             ))
                             .image(&platform_data.image)
                             .url(&platform_data.url)
-                            .author(|a| a.name(&game_data.game_name).icon_url(&game_data.thumbnail))
-                            .timestamp(chrono::Utc::now().to_rfc3339())
-                            .footer(|f| f.text("MotorBot - Patch Plugin"))
-                    })
-                    .components(|f| {
-                        f.create_action_row(|row| {
-                            row.create_button(|btn| {
-                                btn.style(component::ButtonStyle::Link);
-                                btn.url(&platform_data.url);
-                                //btn.emoji(ReactionType::Unicode("🔗".to_string()));
-                                btn.label("Patch Notes")
-                            })
-                        })
-                    })
-            })
+                            .author(
+                                CreateEmbedAuthor::new(&game_data.game_name)
+                                    .icon_url(&game_data.thumbnail),
+                            )
+                            .timestamp(Timestamp::now())
+                            .footer(CreateEmbedFooter::new("MotorBot - Patch Plugin")),
+                    )
+                    .components(action_row),
+            )
             .await
         {
             error!("Error sending message: {:?}", why);
