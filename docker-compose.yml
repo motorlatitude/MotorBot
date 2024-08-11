@@ -1,6 +1,7 @@
 version: "3.8"
 services:
   runtime:
+    pull_policy: build
     environment:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
       - MONGO_URL=${MONGO_URL}
