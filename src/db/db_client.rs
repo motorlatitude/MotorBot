@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
 use mongodb::{
     bson::doc,
-    options::{ClientOptions, FindOneOptions, FindOptions, UpdateOptions},
+    options::ClientOptions,
     results::UpdateResult,
     Client, Collection,
 };
