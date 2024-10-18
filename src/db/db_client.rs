@@ -43,10 +43,7 @@ impl DBClient {
     ) -> mongodb::error::Result<Option<UserScore>> {
         // Query the user_score in the collection with a filter and an option.
         let filter = doc! { "user_id": user_id.to_string() };
-        let find_options = FindOneOptions::builder()
-            .sort(doc! { "user_id": 1 })
-            .build();
-        let cursor = self.user_score().find_one(filter, find_options).await?;
+        let cursor = self.user_score().find_one(filter).sort(doc! { "user_id": 1 }).await?;
 
         Ok(cursor)
     }
@@ -58,10 +55,10 @@ impl DBClient {
     ) -> mongodb::error::Result<UpdateResult> {
         let update_doc = doc! { "$set": {"user_id": user_id.to_string(), "score": score }};
         let filter = doc! { "user_id": user_id.to_string() };
-        let update_options = UpdateOptions::builder().upsert(true).build();
         let cursor = self
             .user_score()
-            .update_one(filter, update_doc, update_options)
+            .update_one(filter, update_doc)
+            .upsert(true)
             .await?;
 
         Ok(cursor)
@@ -78,8 +75,7 @@ impl DBClient {
     /// The database stores an entry for each monitored game. This function
     /// returns a vector of all game ids that are currently being monitored.
     pub async fn fetch_game_ids(&self) -> Vec<GameNews> {
-        let find_options = FindOptions::builder().sort(doc! { "game_id": 1 }).build();
-        let cursor = match self.game_news().find(None, find_options).await {
+        let cursor = match self.game_news().find(doc! {}).sort(doc! { "game_id": 1 }).await {
             Ok(cursor) => cursor,
             Err(_) => return vec![],
         };
@@ -93,10 +89,7 @@ impl DBClient {
     ) -> mongodb::error::Result<Option<GameNews>> {
         // Query the user_score in the collection with a filter and an option.
         let filter = doc! { "game_id": game_id };
-        let find_options = FindOneOptions::builder()
-            .sort(doc! { "game_id": 1 })
-            .build();
-        let cursor = self.game_news().find_one(filter, find_options).await?;
+        let cursor = self.game_news().find_one(filter).sort(doc! { "game_id": 1 }).await?;
 
         Ok(cursor)
     }
@@ -108,10 +101,10 @@ impl DBClient {
     ) -> mongodb::error::Result<UpdateResult> {
         let update_doc = doc! { "$set": {"game_id": game_id, "news_id": news_id }};
         let filter = doc! { "game_id": game_id };
-        let update_options = UpdateOptions::builder().upsert(true).build();
         let cursor = self
             .game_news()
-            .update_one(filter, update_doc, update_options)
+            .update_one(filter, update_doc)
+            .upsert(true)
             .await?;
 
         Ok(cursor)

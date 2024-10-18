@@ -134,17 +134,20 @@ impl Riot {
                 url = format!("{}{}", base_url, url);
             }
             let title = article.value().attr("aria-label").unwrap_or_default();
-            let content_description = article
+            let content_description = match article
                 .select(&content_description_selector)
-                .next()
-                .unwrap()
-                .text()
-                .collect::<String>();
+                .next() {
+                Some(c) => c.text().collect::<String>(),
+                None => "".to_string(),
+            };
             // image is not available in the html and would require rendering
             // the page to get the image url, however a script JSON element can be
             // parsed in order to retreive the image url from JSON
-            let next_data = document.select(&next_data_selector).next().unwrap();
-            let next_data_text = next_data.text().collect::<String>();
+            //let next_data = document.select(&next_data_selector).next().unwrap();
+            let next_data_text = match document.select(&next_data_selector).next() {
+                Some(d) => d.text().collect::<String>(),
+                None => "{}".to_string(),
+            };
             let next_data_json: serde_json::Value = serde_json::from_str(&next_data_text).unwrap();
             let image = next_data_json["props"]["pageProps"]["page"]["blades"][2]["items"][0]
                 ["media"]["url"]
