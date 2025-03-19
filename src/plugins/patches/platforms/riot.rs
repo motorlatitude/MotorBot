@@ -161,7 +161,7 @@ impl Riot {
                 content: content_description.to_string(),
                 url: url.to_string(),
                 image: image.to_string(),
-                gid: gid,
+                gid,
             };
             //println!("{:?}", news);
             articles.push(news);
@@ -220,7 +220,7 @@ impl Riot {
             Ok(r) => {
                 debug!("Riot Web API Response: {:?}", r.status());
                 if r.status() != StatusCode::OK {
-                    return Err(r.status());
+                    Err(r.status())
                 } else {
                     let content = response.unwrap().text().await;
                     match content {
@@ -235,9 +235,9 @@ impl Riot {
             Err(e) => {
                 error!("{} - {:?}", e.is_status(), e.status());
                 if e.is_status() {
-                    return Err(e.status().unwrap_or_default());
+                    Err(e.status().unwrap_or_default())
                 } else {
-                    return Err(StatusCode::BAD_REQUEST);
+                    Err(StatusCode::BAD_REQUEST)
                 }
             }
         }

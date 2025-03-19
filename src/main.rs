@@ -195,7 +195,7 @@ impl EventHandler for Handler {
                 .await
                 .unwrap()
                 .author
-                .id; // The user id of the message that was downvote
+                .id; // The user id of the message that was downvoted
             info!(
                 "User {:?} downvoted message from user: {:?}",
                 user, message_user_id
@@ -281,7 +281,7 @@ impl EventHandler for Handler {
                 .await
                 .unwrap()
                 .author
-                .id; // The user id of the message that was downvote was removed from
+                .id; // The user id of the message that was downvoted was removed from
             info!(
                 "User {:?} downvoted message from user: {:?}",
                 user, message_user_id
@@ -304,169 +304,6 @@ impl EventHandler for Handler {
                 let new_score = uscore.score + 1;
                 if let Err(why) = db.set_user_score(&message_user_id.get(), new_score).await {
                     error!("Failed to set user score {:?}", why);
-                }
-            }
-        }
-    }
-
-    // Handle Slash Command Trigger
-    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
-        if let Interaction::Command(command) = interaction {
-            println!("Received command interaction: {:#?}", command.data.name);
-
-            let content = match command.data.name.as_str() {
-                "ping" => "Pong!".to_string(),
-                "time" => MessageBuilder::new()
-                    .push(":alarm_clock: The current time for MotorBot is ")
-                    .push(format!("{:?}", chrono::Local::now()))
-                    .build(),
-                "roll" => {
-                    let mut rng = rand::thread_rng();
-                    let roll = rng.gen_range(1..100);
-                    MessageBuilder::new()
-                        .push("You rolled a ")
-                        .push_bold_safe(format!("{}", roll))
-                        .build()
-                }
-                "headsortails" => {
-                    let mut rng = rand::thread_rng();
-                    let roll = rng.gen_range(1..100);
-                    if roll >= 50 {
-                        MessageBuilder::new().push(":coin: Heads").build()
-                    } else {
-                        MessageBuilder::new().push(":coin: Tails").build()
-                    }
-                }
-                "score" => {
-                    let mut user_id = command.user.id;
-                    let mut username = command.user.tag();
-
-                    let options = command.data.options.get(0);
-                    println!("Options: {:?}", options);
-                    if !options.is_none() {
-                        let option = options.expect("Expected User Id").value.clone();
-                        if let CommandDataOptionValue::User(user) = option {
-                            user_id = user;
-                        }
-                        username = ctx
-                            .http
-                            .get_user(user_id)
-                            .await
-                            .expect("Failed to fetch user")
-                            .tag();
-                    }
-
-                    let db = DBClient::connect()
-                        .await
-                        .expect("Failed to connect to database");
-                    let user_score = db
-                        .fetch_user_score(&user_id.get())
-                        .await
-                        .expect("Failed to fetch user score");
-                    let mut score = 0;
-                    if !user_score.is_none() {
-                        let uscore = user_score.unwrap();
-                        score = uscore.score;
-                    }
-                    format!("{}'s score is {}", username, score)
-                }
-                "ai" => {
-                    format!("Generating response...")
-                }
-                _ => "not implemented :(".to_string(),
-            };
-
-            if command.data.name.as_str().ne("ai") {
-                if let Err(why) = command
-                    .create_response(
-                        &ctx.http,
-                        CreateInteractionResponse::Message(
-                            CreateInteractionResponseMessage::new().content(content),
-                        ),
-                    )
-                    .await
-                {
-                    println!("Cannot respond to slash command: {}", why);
-                }
-            } else {
-                // Send deferred message whilst dealing with AI
-                if let Err(why) = command
-                    .create_response(
-                        &ctx.http,
-                        CreateInteractionResponse::Defer(CreateInteractionResponseMessage::new()),
-                    )
-                    .await
-                {
-                    println!("Cannot respond to slash command: {}", why);
-                }
-
-                let endpoint: String = command.data.options[0].value.as_str().unwrap().to_string();
-                let prompt: String = command.data.options[1].value.as_str().unwrap().to_string();
-
-                println!("Endpoint: {} | Prompt: {}", endpoint, prompt);
-
-                if endpoint.eq("completions") {
-                    println!("Prompt: {}", prompt);
-                    let completions =
-                        completions::build(models::CompletionModels::TEXT_DAVINCI_003)
-                            .prompt(&prompt)
-                            .max_tokens(50)
-                            .user("MotorBot")
-                            .complete()
-                            .await;
-                    match completions {
-                        Ok(completions) => {
-                            let message = completions.choices[0].text.as_str().to_string();
-                            println!("Message: {}", message);
-                            if let Err(why) = command
-                                .create_followup(
-                                    ctx.http,
-                                    CreateInteractionResponseFollowup::new().content(message),
-                                )
-                                .await
-                            {
-                                println!("Cannot respond to slash command: {}", why);
-                            }
-                        }
-                        Err(why) => {
-                            println!("Error: {:?}", why);
-                        }
-                    }
-                } else if endpoint.eq("images") {
-                    let images = images::build()
-                        .generate(prompt)
-                        .size("256x256")
-                        .user("MotorBot")
-                        .done()
-                        .await;
-                    match images {
-                        Ok(images) => {
-                            let message = images.data[0].url.as_str().to_string();
-                            println!("Message: {}", message);
-                            if let Err(why) = command
-                                .create_followup(
-                                    ctx.http,
-                                    CreateInteractionResponseFollowup::new().content(message),
-                                )
-                                .await
-                            {
-                                println!("Cannot respond to slash command: {}", why);
-                            }
-                        }
-                        Err(why) => {
-                            println!("Error: {:?}", why);
-                        }
-                    }
-                } else {
-                    if let Err(why) = command
-                        .create_followup(
-                            ctx.http,
-                            CreateInteractionResponseFollowup::new().content("Unknown Endpoint"),
-                        )
-                        .await
-                    {
-                        println!("Cannot respond to slash command: {}", why);
-                    }
                 }
             }
         }
@@ -596,6 +433,169 @@ impl EventHandler for Handler {
                 tokio::time::sleep(Duration::from_millis(100)).await;
             }
         });
+    }
+
+    // Handle Slash Command Trigger
+    async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
+        if let Interaction::Command(command) = interaction {
+            println!("Received command interaction: {:#?}", command.data.name);
+
+            let content = match command.data.name.as_str() {
+                "ping" => "Pong!".to_string(),
+                "time" => MessageBuilder::new()
+                    .push(":alarm_clock: The current time for MotorBot is ")
+                    .push(format!("{:?}", chrono::Local::now()))
+                    .build(),
+                "roll" => {
+                    let mut rng = rand::rng();
+                    let roll = rng.random_range(1..100);
+                    MessageBuilder::new()
+                        .push("You rolled a ")
+                        .push_bold_safe(format!("{}", roll))
+                        .build()
+                }
+                "headsortails" => {
+                    let mut rng = rand::rng();
+                    let roll = rng.random_range(1..100);
+                    if roll >= 50 {
+                        MessageBuilder::new().push(":coin: Heads").build()
+                    } else {
+                        MessageBuilder::new().push(":coin: Tails").build()
+                    }
+                }
+                "score" => {
+                    let mut user_id = command.user.id;
+                    let mut username = command.user.tag();
+
+                    let options = command.data.options.get(0);
+                    println!("Options: {:?}", options);
+                    if !options.is_none() {
+                        let option = options.expect("Expected User Id").value.clone();
+                        if let CommandDataOptionValue::User(user) = option {
+                            user_id = user;
+                        }
+                        username = ctx
+                            .http
+                            .get_user(user_id)
+                            .await
+                            .expect("Failed to fetch user")
+                            .tag();
+                    }
+
+                    let db = DBClient::connect()
+                        .await
+                        .expect("Failed to connect to database");
+                    let user_score = db
+                        .fetch_user_score(&user_id.get())
+                        .await
+                        .expect("Failed to fetch user score");
+                    let mut score = 0;
+                    if !user_score.is_none() {
+                        let uscore = user_score.unwrap();
+                        score = uscore.score;
+                    }
+                    format!("{}'s score is {}", username, score)
+                }
+                "ai" => {
+                    "Generating response...".to_string()
+                }
+                _ => "not implemented :(".to_string(),
+            };
+
+            if command.data.name.as_str().ne("ai") {
+                if let Err(why) = command
+                    .create_response(
+                        &ctx.http,
+                        CreateInteractionResponse::Message(
+                            CreateInteractionResponseMessage::new().content(content),
+                        ),
+                    )
+                    .await
+                {
+                    println!("Cannot respond to slash command: {}", why);
+                }
+            } else {
+                // Send deferred message whilst dealing with AI
+                if let Err(why) = command
+                    .create_response(
+                        &ctx.http,
+                        CreateInteractionResponse::Defer(CreateInteractionResponseMessage::new()),
+                    )
+                    .await
+                {
+                    println!("Cannot respond to slash command: {}", why);
+                }
+
+                let endpoint: String = command.data.options[0].value.as_str().unwrap().to_string();
+                let prompt: String = command.data.options[1].value.as_str().unwrap().to_string();
+
+                println!("Endpoint: {} | Prompt: {}", endpoint, prompt);
+
+                if endpoint.eq("completions") {
+                    println!("Prompt: {}", prompt);
+                    let completions =
+                        completions::build(models::CompletionModels::TEXT_DAVINCI_003)
+                            .prompt(&prompt)
+                            .max_tokens(50)
+                            .user("MotorBot")
+                            .complete()
+                            .await;
+                    match completions {
+                        Ok(completions) => {
+                            let message = completions.choices[0].text.as_str().to_string();
+                            println!("Message: {}", message);
+                            if let Err(why) = command
+                                .create_followup(
+                                    ctx.http,
+                                    CreateInteractionResponseFollowup::new().content(message),
+                                )
+                                .await
+                            {
+                                println!("Cannot respond to slash command: {}", why);
+                            }
+                        }
+                        Err(why) => {
+                            println!("Error: {:?}", why);
+                        }
+                    }
+                } else if endpoint.eq("images") {
+                    let images = images::build()
+                        .generate(prompt)
+                        .size("256x256")
+                        .user("MotorBot")
+                        .done()
+                        .await;
+                    match images {
+                        Ok(images) => {
+                            let message = images.data[0].url.as_str().to_string();
+                            println!("Message: {}", message);
+                            if let Err(why) = command
+                                .create_followup(
+                                    ctx.http,
+                                    CreateInteractionResponseFollowup::new().content(message),
+                                )
+                                .await
+                            {
+                                println!("Cannot respond to slash command: {}", why);
+                            }
+                        }
+                        Err(why) => {
+                            println!("Error: {:?}", why);
+                        }
+                    }
+                } else {
+                    if let Err(why) = command
+                        .create_followup(
+                            ctx.http,
+                            CreateInteractionResponseFollowup::new().content("Unknown Endpoint"),
+                        )
+                        .await
+                    {
+                        println!("Cannot respond to slash command: {}", why);
+                    }
+                }
+            }
+        }
     }
 }
 

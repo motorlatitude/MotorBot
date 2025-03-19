@@ -75,12 +75,12 @@ impl Steam {
             .replace("[/h2]", "")
             .replace("[h3]", "")
             .replace("[/h3]", "");
-        let re = Regex::new(r"\[img\](.*?)\[\/img\]").unwrap();
+        let re = Regex::new(r"\[img](.*?)\[/img]").unwrap();
         let mut images = vec![];
         for (_, [path]) in re.captures_iter(&content).map(|c| c.extract()) {
             images.push(path.replace("{STEAM_CLAN_IMAGE}", STEAM_CLAN_IMAGE));
         }
-        let re_youtube = Regex::new(r"\[previewyoutube=(.*?)\]\[\/previewyoutube\]").unwrap();
+        let re_youtube = Regex::new(r"\[previewyoutube=(.*?)]\[/previewyoutube]").unwrap();
         let parsed_content_1 = re.replace_all(&content, "");
         let parsed_content = re_youtube.replace_all(&parsed_content_1, "");
         let parsed_trimmed_content = parsed_content.trim();
@@ -132,7 +132,7 @@ impl Steam {
             Ok(r) => {
                 debug!("Steam Web API Response: {:?}", r.status());
                 if r.status() != StatusCode::OK {
-                    return Err(r.status());
+                    Err(r.status())
                 } else {
                     let content = response.unwrap().json::<T>().await;
                     match content {
@@ -147,9 +147,9 @@ impl Steam {
             Err(e) => {
                 println!("{} - {:?}", e.is_status(), e.status());
                 if e.is_status() {
-                    return Err(e.status().unwrap());
+                    Err(e.status().unwrap())
                 } else {
-                    return Err(StatusCode::BAD_REQUEST);
+                    Err(StatusCode::BAD_REQUEST)
                 }
             }
         }
