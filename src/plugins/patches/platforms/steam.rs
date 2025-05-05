@@ -94,12 +94,16 @@ impl Steam {
         if images.len() > 0 {
             image = &images[0];
         }
+        let truncated_content = match parsed_trimmed_content.char_indices().nth(400) {
+            None => parsed_trimmed_content,
+            Some((idx, _)) => &parsed_trimmed_content[..idx],
+        };
 
         Some(SteamNews {
             title: patch_notes_title,
             content: format!(
                 "{}{}",
-                &parsed_trimmed_content[0..std::cmp::min(parsed_trimmed_content.len(), 400)],
+                &truncated_content,
                 (parsed_trimmed_content.len() > 400)
                     .then(|| "...")
                     .unwrap_or("")
