@@ -1,27 +1,27 @@
 [package]
 name = "motorbot"
-version = "0.1.5"
+version = "0.1.6"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-regex = "1.11.1"
+regex = "1.12.3"
 dotenv = "0.15.0"
-serenity = { version = "0.12.4", default-features = false, features = ["client", "gateway", "http", "rustls_backend", "model", "cache"] }
-tokio = { version = "1.44.1", features = ["macros", "rt-multi-thread"] }
+serenity = { version = "0.12.5", default-features = false, features = ["client", "gateway", "http", "rustls_backend", "model", "cache"] }
+tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
 clokwerk = "0.4.0-rc1"
-chrono = "0.4.40"
-mongodb = "3.2.2"
+chrono = "0.4.43"
+mongodb = "3.5.1"
 futures = "0.3.31"
-reqwest = { version = "0.12.15", features = ["json"] }
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0"
-tracing = "0.1.41"
-tracing-subscriber = "0.3.19"
-rand = "0.9.0"
+reqwest = { version = "0.13.2", features = ["json"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.22"
+rand = "0.10.0"
 oai_rs = "0.1.3"
-scraper = "0.23.1"
+scraper = "0.25.0"
 version_check = "0.9.5"
 
 #  Reduce Docker Image Size

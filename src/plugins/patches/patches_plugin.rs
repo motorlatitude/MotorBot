@@ -49,7 +49,7 @@ impl PatchesPlugin {
     pub async fn update(&self) {
         info!("Updating sources...");
         self.ctx.set_presence(
-            Some(ActivityData::playing("Patches 🔃")),
+            Some(ActivityData::playing("Reading 🗞️")),
             OnlineStatus::DoNotDisturb,
         );
         // let channel_id = ChannelId(432351112616738837);
@@ -89,7 +89,7 @@ impl PatchesPlugin {
         }
 
         self.ctx
-            .set_presence(Some(ActivityData::watching("you 👀")), OnlineStatus::Online);
+            .set_presence(Some(ActivityData::watching("😶‍🌫️")), OnlineStatus::Online);
     }
 
     /// Sends patch notes to a channel

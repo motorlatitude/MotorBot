@@ -1,5 +1,4 @@
 use dotenv::dotenv;
-use rand::Rng;
 use reqwest;
 use reqwest::header::{HeaderMap, HeaderValue};
 use serde::Deserialize;
@@ -312,7 +311,7 @@ impl EventHandler for Handler {
     // Ready Event
     async fn ready(&self, ctx: Context, ready: Ready) {
         info!("{} is connected!", ready.user.name);
-        ctx.set_presence(Some(ActivityData::watching("you 👀")), OnlineStatus::Online);
+        ctx.set_presence(Some(ActivityData::custom("😶‍🌫️")), OnlineStatus::Online);
 
         // let avatar = serenity::utils::read_image("./motorbot.png");
         // match avatar {
@@ -447,16 +446,14 @@ impl EventHandler for Handler {
                     .push(format!("{:?}", chrono::Local::now()))
                     .build(),
                 "roll" => {
-                    let mut rng = rand::rng();
-                    let roll = rng.random_range(1..100);
+                    let roll = rand::random_range(1..100);
                     MessageBuilder::new()
                         .push("You rolled a ")
                         .push_bold_safe(format!("{}", roll))
                         .build()
                 }
                 "headsortails" => {
-                    let mut rng = rand::rng();
-                    let roll = rng.random_range(1..100);
+                    let roll = rand::random_range(1..100);
                     if roll >= 50 {
                         MessageBuilder::new().push(":coin: Heads").build()
                     } else {

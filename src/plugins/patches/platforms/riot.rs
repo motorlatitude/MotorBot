@@ -117,7 +117,7 @@ impl Riot {
     /// and returns a `RiotNews` struct
     pub fn parse_news(&self, game_id: &str, raw_html: String) -> Vec<RiotNews> {
         let document = Html::parse_document(raw_html.as_str());
-        let mut articles = vec![];
+        let mut articles: Vec<RiotNews> = vec![];
         let selector = Selector::parse(r#"section[id="news"] a[role="button"]"#).unwrap();
         let next_data_selector = Selector::parse(r#"script[id="__NEXT_DATA__"]"#).unwrap();
         let content_description_selector =
@@ -164,7 +164,9 @@ impl Riot {
                 gid,
             };
             //println!("{:?}", news);
-            articles.push(news);
+            if articles.iter().find(|a| a.title == news.title).is_none() { 
+                articles.push(news); 
+            }
         }
         articles
     }
