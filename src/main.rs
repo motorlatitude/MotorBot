@@ -182,6 +182,7 @@ impl EventHandler for Handler {
                     error!("Failed to set user score {:?}", why);
                 }
             }
+            db.shutdown().await;
         } else if channel_ids.contains(&reaction.channel_id.get())
             && reaction.emoji == ReactionType::try_from("<:downvote:429449638454493187>").unwrap()
             && !reaction.user_id.unwrap().eq(&169554882674556930)
@@ -219,6 +220,7 @@ impl EventHandler for Handler {
                     error!("Failed to set user score {:?}", why);
                 }
             }
+            db.shutdown().await;
         }
     }
 
@@ -268,6 +270,7 @@ impl EventHandler for Handler {
                     error!("Failed to set user score {:?}", why);
                 }
             }
+            db.shutdown().await;
         } else if channel_ids.contains(&reaction.channel_id.get())
             && reaction.emoji == ReactionType::try_from("<:downvote:429449638454493187>").unwrap()
             && !reaction.user_id.unwrap().eq(&169554882674556930)
@@ -305,6 +308,7 @@ impl EventHandler for Handler {
                     error!("Failed to set user score {:?}", why);
                 }
             }
+            db.shutdown().await;
         }
     }
 
@@ -491,6 +495,7 @@ impl EventHandler for Handler {
                         let uscore = user_score.unwrap();
                         score = uscore.score;
                     }
+                    db.shutdown().await;
                     format!("{}'s score is {}", username, score)
                 }
                 "ai" => {

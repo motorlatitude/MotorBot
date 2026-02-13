@@ -1,9 +1,6 @@
 use futures::TryStreamExt;
 use mongodb::{
-    bson::doc,
-    options::ClientOptions,
-    results::UpdateResult,
-    Client, Collection,
+    Client, Collection, bson::doc, options::{ClientOptions, ResolverConfig}, results::UpdateResult
 };
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -31,10 +28,25 @@ pub struct DBClient {
 impl DBClient {
     pub async fn connect() -> mongodb::error::Result<Self> {
         let mongo_url = env::var("MONGO_URL").expect("Expected MONGO_URL in environment");
-        let client_options = ClientOptions::parse(mongo_url).await?;
-        Ok(Self {
-            client: Client::with_options(client_options)?,
-        })
+        let client_options = ClientOptions::parse(&mongo_url).await?;
+
+        match Client::with_options(client_options) {
+            Ok(client) => Ok(Self { client }),
+            Err(e) => {
+                eprintln!("Failed to connect to MongoDB: {:?}", e);
+                // try with cloudflare dns
+                let client_options = ClientOptions::parse(&mongo_url)
+                    .resolver_config(ResolverConfig::cloudflare())
+                    .await?;
+                match Client::with_options(client_options) {
+                    Ok(client) => Ok(Self { client }),
+                    Err(e) => {
+                        eprintln!("Failed to connect to MongoDB with Cloudflare DNS: {:?}", e);
+                        Err(e)
+                    }
+                }
+            }
+        }
     }
 
     pub async fn fetch_user_score(
@@ -114,5 +126,9 @@ impl DBClient {
         self.client
             .database("MotorBot")
             .collection::<GameNews>("game_news")
+    }
+
+    pub async fn shutdown(self) {
+        self.client.shutdown().await;
     }
 }

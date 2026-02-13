@@ -73,11 +73,11 @@ impl Steam {
             .replace("[*]", "- ")
             .replace("[/list]", "")
             .replace("[h1]", "## ")
-            .replace("[/h1]", "")
+            .replace("[/h1]", "\n")
             .replace("[h2]", "### ")
-            .replace("[/h2]", "")
+            .replace("[/h2]", "\n")
             .replace("[h3]", "")
-            .replace("[/h3]", "");
+            .replace("[/h3]", "\n");
         let re = Regex::new(r"\[img](.*?)\[/img]").unwrap();
         let mut images = vec![];
         for (_, [path]) in re.captures_iter(&content).map(|c| c.extract()) {

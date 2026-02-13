@@ -22,6 +22,7 @@ impl GameData {
             .fetch_game_news_id(&game_id)
             .await
             .expect("Failed to fetch game gid");
+        db.shutdown().await;
         if !raw.is_none() {
             let game_data = raw.unwrap();
             Self {
