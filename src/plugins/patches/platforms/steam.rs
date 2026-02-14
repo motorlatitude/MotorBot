@@ -55,8 +55,8 @@ impl Steam {
             .replace("\"", "");
         let content = response["appnews"]["newsitems"][0]["contents"]
             .to_string()
-            .replace("\"", "")
             .replace("\\\"", "\"")
+            .replace("\"", "")
             .replace("[b]", "**")
             .replace("[/b]", "**")
             .replace("[i]", "*")
@@ -67,7 +67,7 @@ impl Steam {
             .replace("[/quote]", "")
             .replace("\\n", "\n")
             .replace("[p]", "")
-            .replace("[p align=\\start]", "")
+            .replace("[p align=start]", "")
             .replace("[/p]", "\n")
             .replace("[list]", "")
             .replace("[*]", "- ")

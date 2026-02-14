@@ -4,6 +4,7 @@ use mongodb::{
 };
 use serde::{Deserialize, Serialize};
 use std::env;
+use tracing::{error};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserScore {
@@ -33,7 +34,7 @@ impl DBClient {
         match Client::with_options(client_options) {
             Ok(client) => Ok(Self { client }),
             Err(e) => {
-                eprintln!("Failed to connect to MongoDB: {:?}", e);
+                error!("Failed to connect to MongoDB: {:?}", e);
                 // try with cloudflare dns
                 let client_options = ClientOptions::parse(&mongo_url)
                     .resolver_config(ResolverConfig::cloudflare())
@@ -41,7 +42,7 @@ impl DBClient {
                 match Client::with_options(client_options) {
                     Ok(client) => Ok(Self { client }),
                     Err(e) => {
-                        eprintln!("Failed to connect to MongoDB with Cloudflare DNS: {:?}", e);
+                        error!("Failed to connect to MongoDB with Cloudflare DNS: {:?}", e);
                         Err(e)
                     }
                 }
