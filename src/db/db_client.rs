@@ -1,10 +1,10 @@
 use futures::TryStreamExt;
 use mongodb::{
-    Client, Collection, bson::doc, options::{ClientOptions, ResolverConfig}, results::UpdateResult
+    Client, Collection, bson::{doc}, error::ErrorKind, options::{ClientOptions, ResolverConfig}, results::UpdateResult
 };
 use serde::{Deserialize, Serialize};
 use std::env;
-use tracing::{error};
+use tracing::{error, warn};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserScore {
@@ -34,15 +34,23 @@ impl DBClient {
         match Client::with_options(client_options) {
             Ok(client) => Ok(Self { client }),
             Err(e) => {
-                error!("Failed to connect to MongoDB: {:?}", e);
-                // try with cloudflare dns
-                let client_options = ClientOptions::parse(&mongo_url)
-                    .resolver_config(ResolverConfig::cloudflare())
-                    .await?;
-                match Client::with_options(client_options) {
-                    Ok(client) => Ok(Self { client }),
-                    Err(e) => {
-                        error!("Failed to connect to MongoDB with Cloudflare DNS: {:?}", e);
+                match *e.kind {
+                     ErrorKind::DnsResolve { .. } => {
+                        warn!("Error resolving DNS. Retrying with Cloudflare DNS...");
+                        // try with cloudflare dns
+                        let client_options = ClientOptions::parse(&mongo_url)
+                            .resolver_config(ResolverConfig::cloudflare())
+                            .await?;
+                        match Client::with_options(client_options) {
+                            Ok(client) => Ok(Self { client }),
+                            Err(e) => {
+                                error!("Failed to connect to MongoDB with Cloudflare DNS: {:?}", e);
+                                Err(e)
+                            }
+                        }
+                    },
+                    _ => {
+                        error!("Failed to connect to MongoDB: {:?}", e);
                         Err(e)
                     }
                 }

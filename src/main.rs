@@ -16,7 +16,6 @@ use std::time::Duration;
 use std::u64;
 use tracing::{debug, error, info, warn, Level};
 use tracing_subscriber::FmtSubscriber;
-use version_check::Version;
 
 use oai_rs::{completions, images, models};
 
@@ -67,7 +66,6 @@ pub enum MotorBotGuilds {
 impl EventHandler for Handler {
     async fn message(&self, ctx: Context, msg: Message) {
         debug!("Message");
-        // println!("{}: {}\nAttachments: {}", msg.author.name, msg.content, msg.attachments.len());
         if msg.content == "!ping" {
             if let Err(why) = msg.channel_id.say(&ctx.http, "Pong!").await {
                 error!("Error sending message: {:?}", why);
@@ -367,8 +365,6 @@ impl EventHandler for Handler {
 
         let _commands = GuildId::set_commands(guild_id, &ctx.http, commands_list).await;
 
-        //println!("I now have the following guild slash commands: {:#?}", commands);
-
         let _ = Command::create_global_command(
             &ctx.http,
             CreateCommand::new("ping").description("A simple ping command"),
@@ -441,7 +437,7 @@ impl EventHandler for Handler {
     // Handle Slash Command Trigger
     async fn interaction_create(&self, ctx: Context, interaction: Interaction) {
         if let Interaction::Command(command) = interaction {
-            println!("Received command interaction: {:#?}", command.data.name);
+            info!("Received command interaction: {:#?}", command.data.name);
 
             let content = match command.data.name.as_str() {
                 "ping" => "Pong!".to_string(),
@@ -469,7 +465,7 @@ impl EventHandler for Handler {
                     let mut username = command.user.tag();
 
                     let options = command.data.options.get(0);
-                    println!("Options: {:?}", options);
+                    info!("Options: {:?}", options);
                     if !options.is_none() {
                         let option = options.expect("Expected User Id").value.clone();
                         if let CommandDataOptionValue::User(user) = option {
@@ -514,7 +510,7 @@ impl EventHandler for Handler {
                     )
                     .await
                 {
-                    println!("Cannot respond to slash command: {}", why);
+                    warn!("Cannot respond to slash command: {}", why);
                 }
             } else {
                 // Send deferred message whilst dealing with AI
@@ -525,16 +521,16 @@ impl EventHandler for Handler {
                     )
                     .await
                 {
-                    println!("Cannot respond to slash command: {}", why);
+                    warn!("Cannot respond to slash command: {}", why);
                 }
 
                 let endpoint: String = command.data.options[0].value.as_str().unwrap().to_string();
                 let prompt: String = command.data.options[1].value.as_str().unwrap().to_string();
 
-                println!("Endpoint: {} | Prompt: {}", endpoint, prompt);
+                info!("Endpoint: {} | Prompt: {}", endpoint, prompt);
 
                 if endpoint.eq("completions") {
-                    println!("Prompt: {}", prompt);
+                    info!("Prompt: {}", prompt);
                     let completions =
                         completions::build(models::CompletionModels::TEXT_DAVINCI_003)
                             .prompt(&prompt)
@@ -545,7 +541,7 @@ impl EventHandler for Handler {
                     match completions {
                         Ok(completions) => {
                             let message = completions.choices[0].text.as_str().to_string();
-                            println!("Message: {}", message);
+                            info!("Message: {}", message);
                             if let Err(why) = command
                                 .create_followup(
                                     ctx.http,
@@ -553,11 +549,11 @@ impl EventHandler for Handler {
                                 )
                                 .await
                             {
-                                println!("Cannot respond to slash command: {}", why);
+                                warn!("Cannot respond to slash command: {}", why);
                             }
                         }
                         Err(why) => {
-                            println!("Error: {:?}", why);
+                            warn!("Error: {:?}", why);
                         }
                     }
                 } else if endpoint.eq("images") {
@@ -570,7 +566,7 @@ impl EventHandler for Handler {
                     match images {
                         Ok(images) => {
                             let message = images.data[0].url.as_str().to_string();
-                            println!("Message: {}", message);
+                            info!("Message: {}", message);
                             if let Err(why) = command
                                 .create_followup(
                                     ctx.http,
@@ -578,11 +574,11 @@ impl EventHandler for Handler {
                                 )
                                 .await
                             {
-                                println!("Cannot respond to slash command: {}", why);
+                                warn!("Cannot respond to slash command: {}", why);
                             }
                         }
                         Err(why) => {
-                            println!("Error: {:?}", why);
+                            warn!("Error: {:?}", why);
                         }
                     }
                 } else {
@@ -593,7 +589,7 @@ impl EventHandler for Handler {
                         )
                         .await
                     {
-                        println!("Cannot respond to slash command: {}", why);
+                        warn!("Cannot respond to slash command: {}", why);
                     }
                 }
             }
@@ -620,17 +616,7 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("Err creating client");
     const VERSION: &str = env!("CARGO_PKG_VERSION");
-    match Version::read() {
-        Some(v) => {
-            info!("Starting MotorBot v{} using rustc v{}", VERSION, v);
-        }
-        None => {
-            warn!(
-                "Starting MotorBot v{} using an unknown rustc version",
-                VERSION
-            );
-        }
-    }
+    info!("Starting MotorBot v{}", VERSION);
     if let Err(why) = client.start().await {
         error!("Client error: {:?}", why);
     }

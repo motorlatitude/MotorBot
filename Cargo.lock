@@ -1711,7 +1711,7 @@ dependencies = [
 
 [[package]]
 name = "motorbot"
-version = "0.1.6"
+version = "0.1.7"
 dependencies = [
  "chrono",
  "clokwerk",
@@ -1729,7 +1729,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "version_check",
 ]
 
 [[package]]

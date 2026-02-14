@@ -7,7 +7,7 @@ use std::{
 
 use reqwest::StatusCode;
 use scraper::{Html, Selector};
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 /// A struct containing the Riot game id
 /// There are 3 main Riot games, others can be added later assuming they have
@@ -109,7 +109,7 @@ impl Riot {
             return None;
         }
         let latest_article = article_list[0].clone();
-        info!("Latest article: {:?}", latest_article.title);
+        debug!("Latest article: {:?}", latest_article.title);
         Some(latest_article)
     }
 
@@ -215,7 +215,7 @@ impl Riot {
             }
             RiotGameId::Unknown => {}
         }
-        info!("Riot Web API URL: {}", url);
+        debug!("Riot Web API URL: {}", url);
         let response = client.get(url).send().await;
 
         match &response {

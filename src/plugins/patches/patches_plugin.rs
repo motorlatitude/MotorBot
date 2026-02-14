@@ -41,7 +41,6 @@ impl PatchesPlugin {
     /// let patches_plugin = PatchesPlugin::new(); // <- Create a new instance of the plugin will automatically start it
     /// ```
     pub async fn start(&self) {
-        info!("Starting Patches Plugin");
         self.update().await;
     }
 
@@ -49,16 +48,9 @@ impl PatchesPlugin {
     pub async fn update(&self) {
         info!("Updating sources...");
         self.ctx.set_presence(
-            Some(ActivityData::playing("Reading 🗞️")),
+            Some(ActivityData::playing("🔍")),
             OnlineStatus::DoNotDisturb,
         );
-        // let channel_id = ChannelId(432351112616738837);
-        // if let Err(why) = channel_id
-        //     .say(&self.ctx.http, "Updating Patch Sources...")
-        //     .await
-        // {
-        //     error!("Error sending message: {:?}", why);
-        // }
         let db = DBClient::connect()
             .await
             .expect("Failed to connect to database");
@@ -82,14 +74,15 @@ impl PatchesPlugin {
             // Compare gid
             if game_data.news_id != patch_notes.gid {
                 // Send patch notes
+                info!("[⬦] {} ({})", &game_data.game_name, game_id);
                 self.send_patch_notes(&db, patch_notes, game_data).await;
             } else {
-                info!("No new patch notes for {}", game_id);
+                info!("[✔] {} ({})", game_data.game_name, game_id);
             }
         }
 
         self.ctx
-            .set_presence(Some(ActivityData::watching("😶‍🌫️")), OnlineStatus::Online);
+            .set_presence(Some(ActivityData::custom("😶‍🌫️")), OnlineStatus::Online);
     }
 
     /// Sends patch notes to a channel

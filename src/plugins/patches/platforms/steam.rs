@@ -65,19 +65,22 @@ impl Steam {
             .replace("[/u]", "__")
             .replace("[quote]", "> ")
             .replace("[/quote]", "")
+            .replace("\\n\\n", "\n")
             .replace("\\n", "\n")
             .replace("[p]", "")
             .replace("[p align=start]", "")
             .replace("[/p]", "\n")
             .replace("[list]", "")
             .replace("[*]", "- ")
+            .replace("[/*]", "")
             .replace("[/list]", "")
             .replace("[h1]", "## ")
             .replace("[/h1]", "\n")
             .replace("[h2]", "### ")
             .replace("[/h2]", "\n")
             .replace("[h3]", "")
-            .replace("[/h3]", "\n");
+            .replace("[/h3]", "\n")
+            .replace("\\[", "[");
         let re = Regex::new(r"\[img](.*?)\[/img]").unwrap();
         let mut images = vec![];
         for (_, [path]) in re.captures_iter(&content).map(|c| c.extract()) {
@@ -85,13 +88,16 @@ impl Steam {
         }
         let re2 = Regex::new(r"\[img src=(.*?)]\[/img]").unwrap();
         for (_, [path]) in re2.captures_iter(&content).map(|c| c.extract()) {
-            images.push(path.replace("{STEAM_CLAN_IMAGE}", STEAM_CLAN_IMAGE).replace("\\", ""));
+            images.push(path.replace("{STEAM_CLAN_IMAGE}", STEAM_CLAN_IMAGE));
         }
         let re3 = Regex::new(r"\[url=(.*?)](.*?)\[/url]").unwrap();
         let re_youtube = Regex::new(r"\[previewyoutube=(.*?)]\[/previewyoutube]").unwrap();
+        // Remove img tags from content
         let parsed_content_1 = re.replace_all(&content, "");
         let parsed_content_2 = re2.replace_all(&parsed_content_1, "");
+        // Remove url tags from content
         let parsed_content_3 = re3.replace_all(&parsed_content_2, "");
+        // Remove youtube preview tags from content
         let parsed_content = re_youtube.replace_all(&parsed_content_3, "");
         let parsed_trimmed_content = parsed_content.trim();
         let patch_notes_url = response["appnews"]["newsitems"][0]["url"]
