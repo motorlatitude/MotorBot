@@ -7,6 +7,29 @@ pub enum Platform {
     Unknown,
 }
 
+impl Platform {
+    /// Checks if the provided platform string is a valid platform.
+    ///
+    /// # Arguments
+    /// * `platform` - A string slice representing the platform to check.
+    ///
+    /// # Returns
+    /// * `true` if the platform is valid (steam or riot), otherwise `false`.
+    pub fn is_valid_platform(platform: &str) -> bool {
+        matches!(platform, "steam" | "riot")
+    }
+}
+
+impl From<&str> for Platform {
+    fn from(s: &str) -> Self {
+        match s {
+            "steam" => Platform::Steam,
+            "riot" => Platform::Riot,
+            _ => Platform::Unknown,
+        }
+    }
+}
+
 impl fmt::Display for Platform {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -26,5 +49,11 @@ impl FromStr for Platform {
             "riot" => Ok(Platform::Riot),
             _ => Ok(Platform::Unknown),
         }
+    }
+}
+
+impl Default for Platform {
+    fn default() -> Self {
+        Platform::Unknown
     }
 }

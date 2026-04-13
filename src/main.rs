@@ -30,11 +30,13 @@ use serenity::model::user::OnlineStatus;
 use serenity::prelude::*;
 use serenity::utils::MessageBuilder;
 
-mod db;
-use crate::db::DBClient;
+mod storage;
+use storage::{Database, GuildConfig, GuildConfigKey};
 
 mod plugins;
+use crate::plugins::patches::game_data::GameData;
 use crate::plugins::patches::patches_plugin;
+use crate::plugins::patches::platforms::platform::Platform;
 
 struct Handler;
 
@@ -162,25 +164,20 @@ impl EventHandler for Handler {
             );
 
             // Update Database
-            let db = DBClient::connect()
+            let mut db = Database::open()
                 .await
                 .expect("Failed to connect to database");
             let user_score = db
-                .fetch_user_score(&message_user_id.get())
+                .user_score(&message_user_id.get())
                 .await
                 .expect("Failed to fetch user score");
-            if user_score.is_none() {
-                if let Err(why) = db.set_user_score(&message_user_id.get(), 1).await {
-                    error!("Failed to set user score {:?}", why);
-                }
-            } else {
-                let uscore = user_score.unwrap();
-                let new_score = uscore.score + 1;
-                if let Err(why) = db.set_user_score(&message_user_id.get(), new_score).await {
-                    error!("Failed to set user score {:?}", why);
-                }
+            let new_score = user_score.score + 1;
+            if let Err(why) = db.set_user_score(&message_user_id.get(), new_score).await {
+                error!("Failed to set user score {:?}", why);
             }
-            db.shutdown().await;
+            if let Err(why) = db.close().await {
+                error!("Failed to close database connection {:?}", why);
+            }
         } else if channel_ids.contains(&reaction.channel_id.get())
             && reaction.emoji == ReactionType::try_from("<:downvote:429449638454493187>").unwrap()
             && !reaction.user_id.unwrap().eq(&169554882674556930)
@@ -200,25 +197,20 @@ impl EventHandler for Handler {
             );
 
             // Update Database
-            let db = DBClient::connect()
+            let mut db = Database::open()
                 .await
                 .expect("Failed to connect to database");
             let user_score = db
-                .fetch_user_score(&message_user_id.get())
+                .user_score(&message_user_id.get())
                 .await
                 .expect("Failed to fetch user score");
-            if user_score.is_none() {
-                if let Err(why) = db.set_user_score(&message_user_id.get(), 0).await {
-                    error!("Failed to set user score {:?}", why);
-                }
-            } else {
-                let uscore = user_score.unwrap();
-                let new_score = uscore.score - 1;
-                if let Err(why) = db.set_user_score(&message_user_id.get(), new_score).await {
-                    error!("Failed to set user score {:?}", why);
-                }
+            let new_score = user_score.score - 1;
+            if let Err(why) = db.set_user_score(&message_user_id.get(), new_score).await {
+                error!("Failed to set user score {:?}", why);
             }
-            db.shutdown().await;
+            if let Err(why) = db.close().await {
+                error!("Failed to close database connection {:?}", why);
+            }
         }
     }
 
@@ -250,25 +242,20 @@ impl EventHandler for Handler {
             );
 
             // Update Database
-            let db = DBClient::connect()
+            let mut db = Database::open()
                 .await
                 .expect("Failed to connect to database");
             let user_score = db
-                .fetch_user_score(&message_user_id.get())
+                .user_score(&message_user_id.get())
                 .await
                 .expect("Failed to fetch user score");
-            if user_score.is_none() {
-                if let Err(why) = db.set_user_score(&message_user_id.get(), 0).await {
-                    error!("Failed to set user score {:?}", why);
-                }
-            } else {
-                let uscore = user_score.unwrap();
-                let new_score = uscore.score - 1;
-                if let Err(why) = db.set_user_score(&message_user_id.get(), new_score).await {
-                    error!("Failed to set user score {:?}", why);
-                }
+            let new_score = user_score.score - 1;
+            if let Err(why) = db.set_user_score(&message_user_id.get(), new_score).await {
+                error!("Failed to set user score {:?}", why);
             }
-            db.shutdown().await;
+            if let Err(why) = db.close().await {
+                error!("Failed to close database connection {:?}", why);
+            }
         } else if channel_ids.contains(&reaction.channel_id.get())
             && reaction.emoji == ReactionType::try_from("<:downvote:429449638454493187>").unwrap()
             && !reaction.user_id.unwrap().eq(&169554882674556930)
@@ -288,25 +275,20 @@ impl EventHandler for Handler {
             );
 
             // Update Database
-            let db = DBClient::connect()
+            let mut db = Database::open()
                 .await
                 .expect("Failed to connect to database");
             let user_score = db
-                .fetch_user_score(&message_user_id.get())
+                .user_score(&message_user_id.get())
                 .await
                 .expect("Failed to fetch user score");
-            if user_score.is_none() {
-                if let Err(why) = db.set_user_score(&message_user_id.get(), 1).await {
-                    error!("Failed to set user score {:?}", why);
-                }
-            } else {
-                let uscore = user_score.unwrap();
-                let new_score = uscore.score + 1;
-                if let Err(why) = db.set_user_score(&message_user_id.get(), new_score).await {
-                    error!("Failed to set user score {:?}", why);
-                }
+            let new_score = user_score.score + 1;
+            if let Err(why) = db.set_user_score(&message_user_id.get(), new_score).await {
+                error!("Failed to set user score {:?}", why);
             }
-            db.shutdown().await;
+            if let Err(why) = db.close().await {
+                error!("Failed to close database connection {:?}", why);
+            }
         }
     }
 
@@ -336,9 +318,9 @@ impl EventHandler for Handler {
         // }
 
         let channel_id = ChannelId::new(MotorbotChannels::BotEvents as u64);
-
+        const VERSION: &str = env!("CARGO_PKG_VERSION");
         if let Err(why) = channel_id
-            .say(&ctx.http, "MotorBot reporting for duty!")
+            .say(&ctx.http, format!("MotorBot v{} reporting for duty!", VERSION))
             .await
         {
             error!("Error sending message: {:?}", why);
@@ -347,9 +329,6 @@ impl EventHandler for Handler {
         let loaded_patch_plugin = patches_plugin::PatchesPlugin::new(ctx.clone()).await;
 
         // Register Slash Commands
-
-        let guild_id = GuildId::new(MotorBotGuilds::MotorBot as u64);
-
         let commands_list = vec![
             CreateCommand::new("time").description("Returns server time for MotorBot"),
             CreateCommand::new("roll").description("Roll the dice, what will you get?"),
@@ -361,9 +340,33 @@ impl EventHandler for Handler {
                 .description("Allows you to interact with OpenAI")
                 .add_option(CreateCommandOption::new(CommandOptionType::String, "endpoint", "The type of interaction to use for OpenAI either `completions` or `images`").required(true))
                 .add_option(CreateCommandOption::new(CommandOptionType::String, "prompt", "The prompt to use for OpenAI").required(true)),
+            CreateCommand::new("patches")
+                .description("Get the latest patch notes for monitored games")
+                .add_option(CreateCommandOption::new(CommandOptionType::SubCommand, "list", "List all monitored games"))
+                .add_option(CreateCommandOption::new(CommandOptionType::SubCommand, "channel", "Set the channel for patch notes to be posted in")
+                    .add_sub_option(CreateCommandOption::new(CommandOptionType::Channel, "channel", "The channel to post patch notes in").required(true))
+                )
+                .add_option(CreateCommandOption::new(CommandOptionType::SubCommand, "update", "Manually trigger an update to check for new patch notes"))
+                .add_option(CreateCommandOption::new(CommandOptionType::SubCommand, "add", "Add a game to monitor")
+                    .add_sub_option(CreateCommandOption::new(CommandOptionType::String, "id", "The game id to monitor (this should be either a Steam or Riot game ID)").required(true))
+                    .add_sub_option(CreateCommandOption::new(CommandOptionType::String, "platform", "The platform the game is on (e.g. steam, riot)").required(true))
+                    .add_sub_option(CreateCommandOption::new(CommandOptionType::String, "name", "The friendly name of the game").required(true))
+                    .add_sub_option(CreateCommandOption::new(CommandOptionType::String, "thumbnail", "The URL for the game's logo image").required(true))
+                    .add_sub_option(CreateCommandOption::new(CommandOptionType::String, "color", "The color associated with the news item (hex color code)").required(true))
+                )
+                .add_option(CreateCommandOption::new(CommandOptionType::SubCommand, "remove", "Remove a game from monitoring")
+                    .add_sub_option(CreateCommandOption::new(CommandOptionType::String, "id", "The game id to stop monitoring").required(true))
+                )
         ];
 
-        let _commands = GuildId::set_commands(guild_id, &ctx.http, commands_list).await;
+        let mut guild_ids = Vec::new();
+        ctx.http.get_guilds(None, None).await.unwrap().iter().for_each(|guild| {
+            guild_ids.push(guild.id);
+        });
+        info!("Registering slash commands for guilds: {:?}", guild_ids);
+        for guild_id in guild_ids {
+            let _commands = GuildId::set_commands(guild_id, &ctx.http, commands_list.clone()).await;
+        }
 
         let _ = Command::create_global_command(
             &ctx.http,
@@ -371,7 +374,7 @@ impl EventHandler for Handler {
         )
         .await;
 
-        let mut scheduler = AsyncScheduler::with_tz(chrono::Utc);
+        let mut scheduler = AsyncScheduler::with_tz(chrono::Local);
         // Add some tasks to it
         let inner_ctx = loaded_patch_plugin.clone();
         scheduler.every(30.minutes()).run(move || {
@@ -479,23 +482,175 @@ impl EventHandler for Handler {
                             .tag();
                     }
 
-                    let db = DBClient::connect()
+                    let mut db = Database::open()
                         .await
                         .expect("Failed to connect to database");
                     let user_score = db
-                        .fetch_user_score(&user_id.get())
+                        .user_score(&user_id.get())
                         .await
                         .expect("Failed to fetch user score");
-                    let mut score = 0;
-                    if !user_score.is_none() {
-                        let uscore = user_score.unwrap();
-                        score = uscore.score;
+                    if let Err(why) = db.close().await {
+                        error!("Failed to close database connection {:?}", why);
                     }
-                    db.shutdown().await;
-                    format!("{}'s score is {}", username, score)
+                    format!("{}'s score is {}", username, user_score.score)
                 }
                 "ai" => {
                     "Generating response...".to_string()
+                }
+                "patches" => {
+                    let subcommand = command.data.options.get(0);
+                    if let Some(subcommand) = subcommand {
+                        match subcommand.name.as_str() {
+                            "channel" => {
+                                if let CommandDataOptionValue::SubCommand(subcommand_options) = subcommand.value.clone() {
+                                    info!("Subcommand options: {:?}", subcommand_options);
+                                    let channel_id = subcommand_options
+                                        .get(0)
+                                        .expect("Expected channel")
+                                        .value
+                                        .as_channel_id()
+                                        .unwrap().get();
+                                    let guild_id = command.guild_id.unwrap().get();
+                                    let mut db = Database::open()
+                                        .await
+                                        .expect("Failed to connect to database");
+                                    let config_option = GuildConfig::from((GuildConfigKey::PatchNotesChannel, channel_id.to_string()));
+                                    let result = db.set_guild_config(guild_id, config_option).await;
+                                    match result {
+                                        Ok(_) => format!("Patch notes channel set to <#{}>", channel_id),
+                                        Err(e) => {
+                                            error!("Failed to set patch notes channel: {:?}", e);
+                                            "Failed to set patch notes channel".to_string()
+                                        }
+                                    }
+                                } else {
+                                    "No subcommand options provided".to_string()
+                                }
+                            },
+                            "list" => {
+                                let mut db = Database::open()
+                                    .await
+                                    .expect("Failed to connect to database");
+                                let game_ids = db.game_ids_for_guild(command.guild_id.unwrap().get()).await;
+                                let games_to_monitor = match game_ids {
+                                    Ok(ids) => ids,
+                                    Err(e) => {
+                                        error!("Failed to fetch game ids: {:?}", e);
+                                        return;
+                                    }
+                                };
+                                let mut response = String::new();
+                                let mut count = 1;
+                                for game_id in games_to_monitor {
+                                    let game_data = GameData::from_id(&game_id).await;
+                                    response.push_str(&format!(
+                                        "{}. {} ({})\n",
+                                        count, game_data.name, game_data.id
+                                    ));
+                                    count += 1;
+                                }
+                                if response.is_empty() {
+                                    "No games are currently being monitored".to_string()
+                                } else {
+                                    response
+                                }
+                            }
+                            "update" => {
+                                let _ = patches_plugin::PatchesPlugin::new(ctx.clone()).await;
+                                "Update complete".to_string()
+                            }
+                            "add" => {
+                                if let CommandDataOptionValue::SubCommand(subcommand_options) = subcommand.value.clone() {
+                                    info!("Subcommand options: {:?}", subcommand_options);
+                                    let id = subcommand_options
+                                        .get(0)
+                                        .expect("Expected game id")
+                                        .value
+                                        .as_str()
+                                        .unwrap();
+                                    let platform = subcommand_options
+                                        .get(1)
+                                        .expect("Expected platform")
+                                        .value
+                                        .as_str()
+                                        .unwrap();
+                                    if !Platform::is_valid_platform(platform) {
+                                        format!("Invalid platform provided. Valid platforms are: steam, riot")
+                                    } else {
+                                        let name = subcommand_options
+                                            .get(2)
+                                            .expect("Expected name")
+                                            .value
+                                            .as_str()
+                                            .unwrap();
+                                        let thumbnail = subcommand_options
+                                            .get(3)
+                                            .expect("Expected thumbnail")
+                                            .value
+                                            .as_str()
+                                            .unwrap();
+                                        if !thumbnail.starts_with("http") {
+                                            format!("Invalid thumbnail URL provided. URL should start with http")
+                                        } else {
+                                            let raw_color = subcommand_options
+                                                .get(4)
+                                                .expect("Expected color")
+                                                .value
+                                                .as_str()
+                                                .unwrap();
+                                            if !raw_color.starts_with("#") || raw_color.len() != 7 {
+                                                format!("Invalid color provided. Color should be a hex code starting with # and followed by 6 characters (e.g. #FF0000)")
+                                            } else {
+                                                let color = raw_color[1..].to_uppercase();
+                                                let guild = command.guild_id.unwrap().get();
+                                                let mut db = Database::open()
+                                                    .await
+                                                    .expect("Failed to connect to database");
+                                                let result = db.add_game(id, guild, Platform::from(platform), name, thumbnail, &color).await;
+                                                match result {
+                                                    Ok(_) => format!("Game {} added to monitoring list", name),
+                                                    Err(e) => {
+                                                        error!("Failed to add game: {:?}", e);
+                                                        "Failed to add game".to_string()
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    "No subcommand options provided".to_string()
+                                }
+                            },
+                            "remove" => {
+                                if let CommandDataOptionValue::SubCommand(subcommand_options) = subcommand.value.clone() {
+                                    info!("Subcommand options: {:?}", subcommand_options);
+                                    let id = subcommand_options
+                                        .get(0)
+                                        .expect("Expected game id")
+                                        .value
+                                        .as_str()
+                                        .unwrap();
+                                    let guild = command.guild_id.unwrap().get();
+                                    let mut db = Database::open()
+                                        .await
+                                        .expect("Failed to connect to database");
+                                    let result = db.remove_game(id, guild).await;
+                                    match result {
+                                        Ok(_) => format!("Game `{}` removed from monitoring list", id),
+                                        Err(e) => {
+                                            error!("Failed to remove game: {:?}", e);
+                                            "Failed to remove game".to_string()
+                                        }
+                                    }
+                                } else {
+                                    "No subcommand options provided".to_string()
+                                }
+                            },
+                            _ => "Unknown subcommand".to_string(),
+                        }
+                    } else {
+                        "No subcommand provided".to_string()
+                    }
                 }
                 _ => "not implemented :(".to_string(),
             };
@@ -600,8 +755,19 @@ impl EventHandler for Handler {
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
+
+    let level = env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string());
+    let level = match level.to_lowercase().as_str() {
+        "trace" => Level::TRACE,
+        "debug" => Level::DEBUG,
+        "info" => Level::INFO,
+        "warn" => Level::WARN,
+        "error" => Level::ERROR,
+        _ => Level::INFO,
+    };
+
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_max_level(level)
         .finish();
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
     let token = env::var("DISCORD_TOKEN").expect("Expected a token in the environment");

@@ -1,9 +1,5 @@
-use std::str::FromStr;
-
 use crate::{
-    db::DBClient,
-    plugins::patches::{game_data::GameData, platforms::platform::Platform},
-    MotorbotChannels,
+    MotorbotChannels, plugins::patches::game_data::GameData, storage::{Database, GuildConfigKey, database::GuildConfigValue}
 };
 use serenity::{
     all::{
@@ -51,57 +47,79 @@ impl PatchesPlugin {
             Some(ActivityData::playing("🔍")),
             OnlineStatus::DoNotDisturb,
         );
-        let db = DBClient::connect()
+        let mut db = Database::open()
             .await
             .expect("Failed to connect to database");
-        let game_ids = db.fetch_game_ids().await;
-        let games_to_monitor = game_ids
-            .iter()
-            .map(|g| g.game_id.to_string())
-            .collect::<Vec<_>>();
+        let game_ids = db.game_ids().await;
+        let games_to_monitor = match game_ids {
+            Ok(ids) => ids,
+            Err(e) => {
+                error!("Failed to fetch game ids: {:?}", e);
+                return;
+            }
+        };
         // Get latest patch notes for each gameid and check latest patch notes against db
         // if patch notes are different, post patch notes to channel
         for game_id in games_to_monitor {
             // Data from DB
             let game_data = GameData::from_id(&game_id).await;
             // Patch notes from Platform
-            let patch_notes = PatchNotes::fetch_for_platform(
-                Platform::from_str(&game_data.platform).unwrap_or(Platform::Unknown),
-                &game_id,
-            )
-            .await;
+            let patch_notes = PatchNotes::fetch_for_platform(game_data.platform, &game_id).await;
 
             // Compare gid
-            if game_data.news_id != patch_notes.gid {
+            if !game_data.news_items.contains(&patch_notes.gid) {
                 // Send patch notes
-                info!("[⬦] {} ({})", &game_data.game_name, game_id);
-                self.send_patch_notes(&db, patch_notes, game_data).await;
+                info!("[⬦] {} ({})", &game_data.name, game_id);
+                self.send_patch_notes(&mut db, patch_notes, game_data).await;
             } else {
-                info!("[✔] {} ({})", game_data.game_name, game_id);
+                info!("[✔] {} ({})", game_data.name, game_id);
             }
         }
-
+        info!("Update complete");
         self.ctx
             .set_presence(Some(ActivityData::custom("😶‍🌫️")), OnlineStatus::Online);
     }
 
     /// Sends patch notes to a channel
     ///
-    /// # Arguments
+    /// ## Arguments
     /// - `db` - A `DBClient` struct containing the database client
     /// - `platform_data` - A `PatchNotes` struct containing the patch notes
     /// - `game_data` - A `GameData` struct containing the game data
     async fn send_patch_notes(
         &self,
-        db: &DBClient,
+        db: &mut Database,
         platform_data: PatchNotes,
         game_data: GameData,
     ) {
         if platform_data.success == false {
-            warn!("Patch notes failed to fetch for {}", game_data.game_id);
+            warn!("Patch notes failed to fetch for {}", game_data.id);
             return;
         }
-        let channel_id = ChannelId::new(MotorbotChannels::PatchNotes as u64);
+
+        let channel_id = match db
+            .get_guild_config(game_data.guild, GuildConfigKey::PatchNotesChannel)
+            .await
+        {
+            Ok(Some(config)) => match config.value {
+                GuildConfigValue::ChannelId(id) => ChannelId::new(id),
+            },
+            Ok(None) => {
+                warn!(
+                    "No patch notes channel configured for guild {}, skipping",
+                    game_data.guild
+                );
+                return;
+            }
+            Err(e) => {
+                error!(
+                    "Failed to fetch patch notes channel for guild {}, error: {:?}",
+                    game_data.guild, e
+                );
+                return;
+            }
+        };
+
         let mut action_row = vec![CreateActionRow::Buttons(vec![CreateButton::new_link(
             &platform_data.url,
         )
@@ -126,7 +144,7 @@ impl PatchesPlugin {
                             .image(&platform_data.image)
                             .url(&platform_data.url)
                             .author(
-                                CreateEmbedAuthor::new(&game_data.game_name)
+                                CreateEmbedAuthor::new(&game_data.name)
                                     .icon_url(&game_data.thumbnail),
                             )
                             .timestamp(Timestamp::now())
@@ -139,7 +157,7 @@ impl PatchesPlugin {
             error!("Error sending message: {:?}", why);
         } else {
             match db
-                .set_game_news_id(&game_data.game_id, &platform_data.gid)
+                .add_news_item(&game_data.id, &platform_data.gid)
                 .await
             {
                 Ok(_) => (),

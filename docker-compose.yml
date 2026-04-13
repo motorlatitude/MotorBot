@@ -3,8 +3,14 @@ services:
     pull_policy: build
     restart: unless-stopped
     environment:
+      - DATABASE_PATH=${DATABASE_PATH:-/data/}
       - DISCORD_TOKEN=${DISCORD_TOKEN}
-      - MONGO_URL=${MONGO_URL}
       - RAPID_API_KEY=${RAPID_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - data:/data
     build: .
+
+volumes:
+  data:
