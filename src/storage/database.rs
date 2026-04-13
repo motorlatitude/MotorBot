@@ -587,8 +587,7 @@ impl Database {
         const Q_CREATE_GAME_NEWS_TABLE: &str = "CREATE TABLE IF NOT EXISTS game_news (
             uid INTEGER PRIMARY KEY,
             game_id TEXT NOT NULL,
-            news_id TEXT  NOT NULL,
-            FOREIGN KEY (game_id) REFERENCES games(id)
+            news_id TEXT  NOT NULL
         )";
         connection.execute(
             Q_CREATE_GAME_NEWS_TABLE,
