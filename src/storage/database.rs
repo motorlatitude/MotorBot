@@ -2,7 +2,7 @@ use rusqlite::{params, Connection};
 use std::{path::Path};
 use tracing::{debug, error, info, warn};
 
-use crate::plugins::patches::{game_data::GameData, platforms::platform::Platform};
+use crate::plugins::patches::{game_data::{GameData, GuildGameData}, platforms::platform::Platform};
 
 #[path = "errors.rs"]
 mod errors;
@@ -228,12 +228,11 @@ impl Database {
   /// * `game_id` - The ID of the game for which to fetch news.
   ///
   /// ## Returns
-  /// * `Ok(GameNews)` - If the game news is found, it returns a
-  /// [GameNews] struct containing the game ID, platform, news items,
-  /// game name, thumbnail URL, and color.
-  pub async fn game_news(&mut self, game_id: &str) -> Result<GameData> {
-    let (guild, platform_str, name, thumbnail, color) = self.game_details(game_id).await?;
-    let platform = Platform::from(platform_str.as_str());
+  /// * `Ok(Vec<String>)` - If the game news is found, it returns a vector of
+  /// news item hashes.
+  /// * `Err(Error)` - If there is an error during the database query, it
+  /// returns a [Error] variant with details about the failure.
+  pub async fn game_news(&mut self, game_id: &str) -> Result<Vec<String>> {
     match &mut self.connection {
       Some(connection) => {
         const Q_GAME_NEWS: &str = "SELECT game_id, news_id FROM game_news WHERE game_id = ?1";
@@ -247,10 +246,8 @@ impl Database {
           let news_id: String = row.get(1)?;
           news_items.push(news_id);
         }
-        drop(rows);
-        drop(stmt);
 
-        Ok(GameData { id: game_id.to_string(), guild, platform, news_items, name, thumbnail, color})
+        Ok(news_items)
       },
       None => return Err(Error::InvalidConnection),
     }
@@ -315,13 +312,11 @@ impl Database {
   /// * `game_id` - The ID of the game for which to fetch details.
   ///
   /// ## Returns
-  /// * `Ok((u64, String, String, String, String))` - If the game details are found,
-  /// it returns a tuple containing the guild ID, platform, name, thumbnail URL, and color
-  /// of the game. If the game is not found, it returns a tuple of empty
-  /// strings.
+  /// * `Ok(GameData)` - If the game details are found, it returns a [GameData]
+  /// struct.
   /// * `Err(Error)` - If there is an error during the database query, it
   /// returns a [Error] variant with details about the failure.
-  pub async fn game_details(&mut self, game_id: &str) -> Result<(u64, String, String, String, String)> {
+  pub async fn game_details(&mut self, game_id: &str) -> Result<GameData> {
     match &mut self.connection {
       Some(connection) => {
         const Q_GAME_DETAILS: &str = "SELECT guild, platform, name, thumbnail, color FROM games WHERE id = ?1";
@@ -330,18 +325,29 @@ impl Database {
         let mut rows = stmt.query(params![game_id])
             .map_err(|e| Error::with_sql(e, Q_GAME_DETAILS))?;
 
-        if let Some(row) = rows.next()? {
-            let guild_str: String = row.get(0)?;
-            let guild = guild_str.parse::<u64>().unwrap_or(0);
-            let platform: String = row.get(1)?;
-            let name: String = row.get(2)?;
-            let thumbnail: String = row.get(3)?;
-            let color: String = row.get(4)?;
-            Ok((guild, platform, name, thumbnail, color))
-        } else {
-            warn!("Game details not found for game {}", game_id);
-            Ok((0, String::new(), String::new(), String::new(), String::new()))
+        let mut platform: Platform = Platform::Unknown;
+        let news_items = None;
+        let mut guild_data = Vec::new();
+        while let Some(row) = rows.next()? {
+          let guild_str: String = row.get(0)?;
+          let platform_str: String = row.get(1)?;
+          platform = Platform::from(platform_str.as_str());
+          let name: String = row.get(2)?;
+          let thumbnail: String = row.get(3)?;
+          let color: String = row.get(4)?;
+          guild_data.push(GuildGameData {
+            guild: guild_str.parse::<u64>().unwrap_or(0),
+            name,
+            thumbnail,
+            color,
+          });
         }
+        Ok(GameData {
+          id: game_id.to_string(),
+          platform,
+          news_items,
+          guild_data,
+        })
       },
       None => return Err(Error::InvalidConnection),
     }
@@ -357,7 +363,7 @@ impl Database {
   pub async fn game_ids(&mut self) -> Result<Vec<String>> {
     match &mut self.connection {
       Some(connection) => {
-        const Q_GAME_IDS: &str = "SELECT id FROM games";
+        const Q_GAME_IDS: &str = "SELECT id FROM games GROUP BY id";
         let mut stmt = connection.prepare(Q_GAME_IDS)
             .map_err(|e| Error::with_sql(e, Q_GAME_IDS))?;
         let mut rows = stmt.query([]).map_err(|e| Error::with_sql(e, Q_GAME_IDS))?;

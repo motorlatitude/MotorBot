@@ -543,9 +543,14 @@ impl EventHandler for Handler {
                                 let mut count = 1;
                                 for game_id in games_to_monitor {
                                     let game_data = GameData::from_id(&game_id).await;
+                                    let guild_data = game_data.guild_data.iter().find(|g| g.guild == command.guild_id.unwrap().get());
+                                    let game_name = match guild_data {
+                                        Some(guild_data) => &guild_data.name,
+                                        None => "Unknown Name",
+                                    };
                                     response.push_str(&format!(
                                         "{}. {} ({})\n",
-                                        count, game_data.name, game_data.id
+                                        count, game_name, game_data.id
                                     ));
                                     count += 1;
                                 }

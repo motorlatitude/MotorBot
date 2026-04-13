@@ -1,5 +1,5 @@
 use crate::{
-    MotorbotChannels, plugins::patches::game_data::GameData, storage::{Database, GuildConfigKey, database::GuildConfigValue}
+    MotorbotChannels, plugins::patches::game_data::{GameData, GuildGameData}, storage::{Database, GuildConfigKey, database::GuildConfigValue}
 };
 use serenity::{
     all::{
@@ -58,21 +58,29 @@ impl PatchesPlugin {
                 return;
             }
         };
-        // Get latest patch notes for each gameid and check latest patch notes against db
-        // if patch notes are different, post patch notes to channel
+        // Get latest patch notes for each game_id and check latest patch notes
+        // against db if patch notes are different, post patch notes to channel
         for game_id in games_to_monitor {
             // Data from DB
             let game_data = GameData::from_id(&game_id).await;
             // Patch notes from Platform
             let patch_notes = PatchNotes::fetch_for_platform(game_data.platform, &game_id).await;
-
             // Compare gid
-            if !game_data.news_items.contains(&patch_notes.gid) {
-                // Send patch notes
-                info!("[⬦] {} ({})", &game_data.name, game_id);
-                self.send_patch_notes(&mut db, patch_notes, game_data).await;
-            } else {
-                info!("[✔] {} ({})", game_data.name, game_id);
+            let game_news_items = match &game_data.news_items {
+                Some(items) => items,
+                None => {
+                    warn!("No news items found for game_id {}, skipping", game_id);
+                    continue;
+                }
+            };
+            for guild_data in &game_data.guild_data {
+                if !game_news_items.contains(&patch_notes.gid) {
+                    // Send patch notes
+                    info!("[⬦] {} ({}) [{}]", &guild_data.name, game_id, guild_data.guild);
+                    self.send_patch_notes(&mut db, &patch_notes, &game_id, guild_data).await;
+                } else {
+                    info!("[✔] {} ({}) [{}]", guild_data.name, game_id, guild_data.guild);
+                }
             }
         }
         info!("Update complete");
@@ -85,15 +93,17 @@ impl PatchesPlugin {
     /// ## Arguments
     /// - `db` - A `DBClient` struct containing the database client
     /// - `platform_data` - A `PatchNotes` struct containing the patch notes
-    /// - `game_data` - A `GameData` struct containing the game data
+    /// - `game_id` - A string slice containing the game ID
+    /// - `game_data` - A [GuildGameData] struct containing the game data
     async fn send_patch_notes(
         &self,
         db: &mut Database,
-        platform_data: PatchNotes,
-        game_data: GameData,
+        platform_data: &PatchNotes,
+        game_id: &str,
+        game_data: &GuildGameData,
     ) {
         if platform_data.success == false {
-            warn!("Patch notes failed to fetch for {}", game_data.id);
+            warn!("Patch notes failed to fetch for {}", game_id);
             return;
         }
 
@@ -157,7 +167,7 @@ impl PatchesPlugin {
             error!("Error sending message: {:?}", why);
         } else {
             match db
-                .add_news_item(&game_data.id, &platform_data.gid)
+                .add_news_item(&game_id, &platform_data.gid)
                 .await
             {
                 Ok(_) => (),

@@ -80,6 +80,8 @@ impl Steam {
             .replace("[/h2]", "\n")
             .replace("[h3]", "")
             .replace("[/h3]", "\n")
+            .replace("[hr]", "---\n")
+            .replace("[/hr]", "")
             .replace("\\[", "[");
         let re = Regex::new(r"\[img](.*?)\[/img]").unwrap();
         let mut images = vec![];
