@@ -1,3 +1,4 @@
 /target
 .env
 motorbot.db
+.DS_Store
