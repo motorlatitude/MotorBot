@@ -8,6 +8,7 @@ services:
       - RAPID_API_KEY=${RAPID_API_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      - TZ=${TZ:-UTC}
     volumes:
       - data:/data
     build: .
