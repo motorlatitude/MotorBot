@@ -1,7 +1,7 @@
 FROM rust:slim AS builder
 
 RUN apt-get update -y && \
-  apt-get install -y pkg-config make g++ libssl-dev libc6 && \
+  apt-get install -y pkg-config make g++ libssl-dev libc6 tzdata && \
   rustup target add x86_64-unknown-linux-gnu
 
 WORKDIR /app
@@ -12,7 +12,7 @@ RUN cargo build --release --target x86_64-unknown-linux-gnu
 
 FROM debian:latest
 RUN apt-get update -y && \
-  apt-get install -y pkg-config make g++ libssl-dev libc6
+  apt-get install -y libssl-dev libc6 tzdata
 
 RUN mkdir -p /data
 
