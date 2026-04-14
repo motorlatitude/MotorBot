@@ -1,16 +1,17 @@
 FROM rust:slim AS builder
 
-RUN apt-get update -y && \
-  apt-get install -y pkg-config make g++ libssl-dev libc6 tzdata && \
-  rustup target add x86_64-unknown-linux-gnu
+RUN apt-get update -y
+RUN apt-get install -y pkg-config make g++ libssl-dev libc6 tzdata
+RUN echo "$(rustc -vV | sed -n 's|host: ||p')" > /var/rust_target
+RUN rustup target add $(cat /var/rust_target)
 
 WORKDIR /app
 COPY . .
 
-RUN cargo build --release --target x86_64-unknown-linux-gnu
+RUN cargo build --target $(cat /var/rust_target) --release
+RUN cp /app/target/$(cat /var/rust_target)/release/motorbot /bin/motorbot
 
-
-FROM debian:latest
+FROM debian:trixie-slim
 RUN apt-get update -y && \
   apt-get install -y pkg-config make g++ libssl-dev libc6 tzdata
 
@@ -22,5 +23,5 @@ LABEL org.opencontainers.image.authors="MotorBot Contributors" \
       org.opencontainers.image.title="MotorBot"
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
-COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/motorbot /bin/motorbot
+COPY --from=builder /bin/motorbot /bin/motorbot
 ENTRYPOINT [ "/bin/motorbot" ]
