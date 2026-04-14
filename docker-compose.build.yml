@@ -1,6 +1,6 @@
 services:
-  motorbot:
-    image: ghcr.io/motorlatitude/motorbot:latest
+  runtime:
+    pull_policy: build
     restart: unless-stopped
     environment:
       - DATABASE_PATH=${DATABASE_PATH:-/data/}
@@ -11,6 +11,7 @@ services:
       - TZ=${TZ:-UTC}
     volumes:
       - data:/data
+    build: .
 
 volumes:
   data:
