@@ -16,6 +16,11 @@ RUN apt-get update -y && \
 
 RUN mkdir -p /data
 
+LABEL org.opencontainers.image.authors="MotorBot Contributors" \
+      org.opencontainers.image.description="A simple Discord Bot written in Rust" \
+      org.opencontainers.image.source="https://github.com/motorlatitude/MotorBot" \
+      org.opencontainers.image.title="MotorBot"
+
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /app/target/x86_64-unknown-linux-gnu/release/motorbot /bin/motorbot
 ENTRYPOINT [ "/bin/motorbot" ]
