@@ -2,14 +2,19 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 
 # Builder Image
 FROM --platform=$BUILDPLATFORM rust:slim AS builder
-RUN apt-get update && apt-get install -y clang lld pkg-config make g++ gcc-multilib libssl-dev libc6 tzdata
+RUN apt-get update && apt-get install -y clang lld pkg-config make g++ libssl-dev libc6 tzdata
 ARG TARGETPLATFORM
 
 WORKDIR /app
 COPY . .
 COPY --from=xx / /
 
-RUN RUSTFLAGS="-C link-args=-fstack-protector-all -lssp" xx-cargo build --release --target-dir ./build && \
+RUN export qemu_aarch64="qemu-aarch64 -L /usr/aarch64-linux-gnu" && \
+    export CFLAGS_aarch64_unknown_linux_gnu="--sysroot=/usr/aarch64-linux-gnu" && \
+    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc && \
+    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER="$qemu_aarch64"
+
+RUN xx-cargo build --release --target-dir ./build && \
     xx-verify ./build/$(xx-cargo --print-target-triple)/release/motorbot
 
 RUN cp ./build/$(xx-cargo --print-target-triple)/release/motorbot /bin/motorbot
