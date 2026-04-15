@@ -2,12 +2,14 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 
 # Builder Image
 FROM --platform=$BUILDPLATFORM rust:slim AS builder
-RUN apt-get update && apt-get install -y clang lld pkg-config make g++ gcc-multilib libssl-dev libc6 tzdata
+RUN apt-get update && apt-get install -y clang lld pkg-config make g++ libssl-dev libc6 tzdata
 ARG TARGETPLATFORM
 
 WORKDIR /app
 COPY . .
 COPY --from=xx / /
+
+RUN rustup target add x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu
 
 RUN xx-cargo build --release --target-dir ./build && \
     xx-verify ./build/$(xx-cargo --print-target-triple)/release/motorbot
