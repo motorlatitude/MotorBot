@@ -2,10 +2,8 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 
 # Builder Image
 FROM --platform=$BUILDPLATFORM rust:slim AS builder
-#RUN apt-get update && apt-get install -y clang lld pkg-config make g++ libssl-dev libc6 tzdata
 ARG TARGETPLATFORM
 
-# install arm64 cross-compiler
 RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
     dpkg --add-architecture arm64 && \
     apt update && \
