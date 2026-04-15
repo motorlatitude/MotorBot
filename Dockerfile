@@ -2,17 +2,47 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 
 # Builder Image
 FROM --platform=$BUILDPLATFORM rust:slim AS builder
-RUN apt-get update && apt-get install -y clang lld pkg-config make g++ gcc-multilib libssl-dev libc6 tzdata qemu-user libc6-dev-arm64-cross
+#RUN apt-get update && apt-get install -y clang lld pkg-config make g++ libssl-dev libc6 tzdata
 ARG TARGETPLATFORM
+
+# install arm64 cross-compiler
+RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
+    dpkg --add-architecture arm64 && \
+    apt update && \
+    apt install -y \
+        clang \
+        lld \
+        pkg-config \
+        make \
+        g++ \
+        libc6-dev:arm64 \
+        tzdata \
+        gcc-aarch64-linux-gnu \
+        g++-aarch64-linux-gnu \
+        libssl-dev:arm64; \
+    fi && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then \
+    dpkg --add-architecture arm64 && \
+    apt update && \
+    apt install -y \
+        clang \
+        lld \
+        pkg-config \
+        make \
+        g++ \
+        libc6 \
+        tzdata \
+        gcc-x86_64-linux-gnu \
+        g++-x86_64-linux-gnu \
+        libssl-dev; \
+    fi && \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 COPY . .
 COPY --from=xx / /
-
-RUN export qemu_aarch64="qemu-aarch64 -L /usr/aarch64-linux-gnu" && \
-    export CFLAGS_aarch64_unknown_linux_gnu="--sysroot=/usr/aarch64-linux-gnu" && \
-    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc && \
-    export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER="$qemu_aarch64"
 
 RUN xx-cargo build --release --target-dir ./build && \
     xx-verify ./build/$(xx-cargo --print-target-triple)/release/motorbot
