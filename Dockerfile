@@ -24,7 +24,6 @@ RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
     rm -rf /var/lib/apt/lists/*
 
 RUN if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then \
-    dpkg --add-architecture arm64 && \
     apt update && \
     apt install -y \
         clang \
@@ -49,7 +48,7 @@ RUN xx-cargo build --release --target-dir ./build && \
 RUN cp ./build/$(xx-cargo --print-target-triple)/release/motorbot /bin/motorbot
 
 # Final Image
-FROM debian:trixie-slim
+FROM debian:trixie-slim AS runtime
 
 LABEL org.opencontainers.image.authors="MotorBot Contributors"
 LABEL org.opencontainers.image.description="A simple Discord Bot written in Rust"
@@ -57,7 +56,8 @@ LABEL org.opencontainers.image.source="https://github.com/motorlatitude/motorbot
 LABEL org.opencontainers.image.title="MotorBot"
 
 RUN apt-get update -y && \
-  apt-get install -y pkg-config make g++ libssl-dev libc6 tzdata
+    apt-get install -y tzdata && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /data
 
