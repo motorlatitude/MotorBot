@@ -2,7 +2,7 @@ FROM --platform=$BUILDPLATFORM tonistiigi/xx AS xx
 
 # Builder Image
 FROM --platform=$BUILDPLATFORM rust:slim AS builder
-RUN apt-get update && apt-get install -y clang lld pkg-config make g++ gcc-multilib libssl-dev libc6 tzdata
+RUN apt-get update && apt-get install -y clang lld pkg-config make g++ gcc-multilib libssl-dev libc6 tzdata qemu-user gcc-aarch64-linux-gnu libc6-dev-arm64-cross
 ARG TARGETPLATFORM
 
 WORKDIR /app
