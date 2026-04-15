@@ -14,7 +14,6 @@ RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
         lld \
         pkg-config \
         make \
-        g++ \
         libc6-dev:arm64 \
         tzdata \
         gcc-aarch64-linux-gnu \
@@ -34,8 +33,6 @@ RUN if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then \
         g++ \
         libc6 \
         tzdata \
-        gcc-x86_64-linux-gnu \
-        g++-x86_64-linux-gnu \
         libssl-dev; \
     fi && \
     rm -rf /var/lib/apt/lists/*
