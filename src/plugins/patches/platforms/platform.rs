@@ -1,9 +1,14 @@
 use std::{fmt, str::FromStr};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum Platform {
+    /// Steam platform
     Steam,
+    /// Riot platform
     Riot,
+    /// An unknown platform, used as a fallback for invalid or unrecognized
+    /// platform strings
+    #[default]
     Unknown,
 }
 
@@ -49,11 +54,5 @@ impl FromStr for Platform {
             "riot" => Ok(Platform::Riot),
             _ => Ok(Platform::Unknown),
         }
-    }
-}
-
-impl Default for Platform {
-    fn default() -> Self {
-        Platform::Unknown
     }
 }
