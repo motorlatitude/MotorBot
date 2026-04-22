@@ -16,9 +16,15 @@ pub enum Error {
     Plugin(plugin::PluginError),
 
     // -- External
-    /// An error related to the Serenity library, such as issues with the Discord API.
+    /// An error related to the Serenity library, such as issues with the
+    /// Discord API.
     #[from]
     Serenity(serenity::Error),
+
+    /// An error related to the reqwest library, such as issues with making
+    /// HTTP requests.
+    #[from]
+    Reqwest(reqwest::Error),
 }
 
 impl From<rusqlite::Error> for Error {

@@ -36,14 +36,8 @@ impl JokesPlugin {
     async fn joke(
         http: std::sync::Arc<serenity::http::Http>,
         guilds: Vec<GuildId>,
-    ) {
-        let mut db = match Database::open().await {
-            Ok(db) => db,
-            Err(why) => {
-                error!("Failed to open database connection: {:?}", why);
-                return;
-            }
-        };
+    ) -> Result<()> {
+        let mut db = Database::open().await?;
         let mut channel_ids = Vec::new();
         for guild in &guilds {
             let guild_id = guild.get();
@@ -68,26 +62,31 @@ impl JokesPlugin {
         let client = reqwest::Client::new();
 
         let mut headers = HeaderMap::new();
-        let rapid_api_key: String = env::var("RAPID_API_KEY")
-            .expect("Expected a token in the environment");
+        let rapid_api_key: String =
+            env::var("RAPID_API_KEY").map_err(|_| {
+                Error::Plugin(PluginError::MissingEnvironmentVariable {
+                    var_name: "RAPID_API_KEY".to_string(),
+                })
+            })?;
         headers.insert(
             "X-RapidAPI-Key",
-            HeaderValue::from_str(&rapid_api_key).unwrap(),
+            HeaderValue::from_str(&rapid_api_key)
+                .unwrap_or(HeaderValue::from_static("")),
         );
         headers.insert(
             "X-RapidAPI-Host",
-            HeaderValue::from_str("dad-jokes.p.rapidapi.com").unwrap(),
+            HeaderValue::from_static("dad-jokes.p.rapidapi.com"),
         );
 
         let http_response = client
             .get("https://dad-jokes.p.rapidapi.com/random/joke")
             .headers(headers)
             .send()
-            .await
-            .expect("Failed to request joke")
-            .json::<Response>()
-            .await
-            .expect("Failed to parse joke");
+            .await?;
+
+        let joke = http_response.json::<Response>().await?;
+        let setup = joke.body[0].setup.to_string();
+        let punchline = joke.body[0].punchline.to_string();
 
         for channel_id in channel_ids {
             let pixel_animal_emojis = [
@@ -99,19 +98,22 @@ impl JokesPlugin {
             ];
             let random_emoji = pixel_animal_emojis
                 [rand::random_range(0..pixel_animal_emojis.len())];
-            let _ = channel_id
+            channel_id
                 .send_message(
                     &http,
                     CreateMessage::new().content(format!(
                         "## {} Joke for {}\n{}\n\n||{}||",
                         random_emoji,
                         chrono::Local::now().format("%d %B %Y"),
-                        http_response.body[0].setup.as_str().unwrap(),
-                        http_response.body[0].punchline.as_str().unwrap()
+                        setup,
+                        punchline
                     )),
                 )
-                .await;
+                .await
+                .map_err(|err| PluginError::FailedToRespond { err })?;
         }
+        db.close().await?;
+        Ok(())
     }
 }
 
@@ -170,7 +172,9 @@ impl MotorbotPlugin for JokesPlugin {
             let http = http.clone();
             let guilds = guilds.clone();
             async move {
-                JokesPlugin::joke(http, guilds).await;
+                JokesPlugin::joke(http, guilds).await.unwrap_or_else(|err| {
+                    error!("Failed to send joke: {:?}", err);
+                });
             }
         });
 

@@ -20,6 +20,13 @@ pub enum Error {
     #[display("Expected a ChannelId but got None")]
     MissingChannelId,
 
+    /// Plugin expected an environment variable to be set but it was missing
+    #[display("Missing environment variable: {}", var_name)]
+    MissingEnvironmentVariable {
+        /// The name of the missing environment variable
+        var_name: String,
+    },
+
     /// Plugin expected something to happen in a guild context but it was used
     /// somewhere else (e.g. in a DM)
     ExpectedGuild,
