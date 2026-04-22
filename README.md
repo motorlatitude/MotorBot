@@ -31,7 +31,6 @@ services:
             - DATABASE_PATH=${DATABASE_PATH:-/data/}
             - DISCORD_TOKEN=${DISCORD_TOKEN}
             - RAPID_API_KEY=${RAPID_API_KEY}
-            - OPENAI_API_KEY=${OPENAI_API_KEY}
             - LOG_LEVEL=${LOG_LEVEL:-info}
             - TZ=${TZ:-UTC}
         volumes:
@@ -52,10 +51,6 @@ This should contain a Discord Bot token and can be registered [here](https://dis
 #### `RAPID_API_KEY`
 
 This should contain a Rapid API key and can be registered [here](https://rapidapi.com/). This is used for the joke plugin.
-
-#### `OPENAI_API_KEY`
-
-This should contain an OpenAI API key and can be registered [here](https://platform.openai.com/). This is used for the AI plugin.
 
 #### `DATABASE_PATH`
 
