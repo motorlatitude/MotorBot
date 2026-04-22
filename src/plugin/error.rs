@@ -80,6 +80,12 @@ pub enum Error {
     /// invalid, such as not being a valid hex color code when expected.
     #[display("Invalid game color provided")]
     InvalidGameColor,
+
+    /// An error indicating that the plugin is in an invalid internal state,
+    /// such as missing necessary context or configuration that should have been
+    /// set during initialization or operation.
+    #[display("Plugin is in an invalid internal state")]
+    InvalidInternalState,
 }
 
 impl std::error::Error for Error {}

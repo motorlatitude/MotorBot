@@ -39,81 +39,71 @@ impl PatchesPlugin {
     }
 
     /// Looks for new patch notes for games
-    pub async fn update(&self) {
-        match &self.ctx {
-            Some(ctx) => {
-                info!("Updating sources...");
-                ctx.set_presence(
-                    Some(ActivityData::custom("🧭 Exploring...")),
-                    OnlineStatus::DoNotDisturb,
-                );
-                let mut db = Database::open()
-                    .await
-                    .expect("Failed to connect to database");
-                let game_ids = db.game_ids().await;
-                let games_to_monitor = match game_ids {
-                    Ok(ids) => ids,
-                    Err(e) => {
-                        error!("Failed to fetch game ids: {:?}", e);
-                        return;
-                    }
-                };
-                // Get latest patch notes for each game_id and check latest patch notes
-                // against db if patch notes are different, post patch notes to channel
-                for game_id in games_to_monitor {
-                    // Data from DB
-                    let game_data = GameData::from_id(&game_id).await;
-                    // Patch notes from Platform
-                    let patch_notes = PatchNotes::fetch_for_platform(
-                        game_data.platform,
+    pub async fn update(&self) -> Result<()> {
+        let ctx = &self.ctx.clone().ok_or(PluginError::InvalidInternalState)?;
+        info!("Updating sources...");
+        ctx.set_presence(
+            Some(ActivityData::custom("🧭 Exploring...")),
+            OnlineStatus::DoNotDisturb,
+        );
+        let mut db = Database::open().await?;
+        let game_ids = db.game_ids().await;
+        let games_to_monitor = match game_ids {
+            Ok(ids) => ids,
+            Err(e) => {
+                error!("Failed to fetch game ids: {:?}", e);
+                return Err(Error::Plugin(PluginError::InvalidInternalState));
+            }
+        };
+        // Get latest patch notes for each game_id and check latest patch notes
+        // against db if patch notes are different, post patch notes to channel
+        for game_id in games_to_monitor {
+            // Data from DB
+            let game_data = GameData::from_id(&game_id).await;
+            // Patch notes from Platform
+            let patch_notes =
+                PatchNotes::fetch_for_platform(game_data.platform, &game_id)
+                    .await;
+            // Compare gid
+            let game_news_items = match &game_data.news_items {
+                Some(items) => items,
+                None => {
+                    warn!(
+                        "No news items found for game_id {}, skipping",
+                        game_id
+                    );
+                    continue;
+                }
+            };
+            for guild_data in &game_data.guild_data {
+                if !game_news_items.contains(&patch_notes.gid) {
+                    // Send patch notes
+                    info!(
+                        "[+] {} ({}) [{}]",
+                        &guild_data.name, game_id, guild_data.guild
+                    );
+                    self.send_patch_notes(
+                        &mut db,
+                        &patch_notes,
                         &game_id,
+                        guild_data,
                     )
                     .await;
-                    // Compare gid
-                    let game_news_items = match &game_data.news_items {
-                        Some(items) => items,
-                        None => {
-                            warn!(
-                                "No news items found for game_id {}, skipping",
-                                game_id
-                            );
-                            continue;
-                        }
-                    };
-                    for guild_data in &game_data.guild_data {
-                        if !game_news_items.contains(&patch_notes.gid) {
-                            // Send patch notes
-                            info!(
-                                "[+] {} ({}) [{}]",
-                                &guild_data.name, game_id, guild_data.guild
-                            );
-                            self.send_patch_notes(
-                                &mut db,
-                                &patch_notes,
-                                &game_id,
-                                guild_data,
-                            )
-                            .await;
-                        } else {
-                            info!(
-                                "[•] {} ({}) [{}]",
-                                guild_data.name, game_id, guild_data.guild
-                            );
-                        }
-                    }
+                } else {
+                    info!(
+                        "[•] {} ({}) [{}]",
+                        guild_data.name, game_id, guild_data.guild
+                    );
                 }
-                info!("Update complete");
-                ctx.set_presence(
-                    Some(ActivityData::custom("😶‍🌫️")),
-                    OnlineStatus::Online,
-                );
-            }
-            None => {
-                warn!(
-                    "No context set for PatchesPlugin, cannot update sources"
-                );
             }
         }
+        db.close().await?;
+        info!("Update complete");
+        ctx.set_presence(
+            Some(ActivityData::custom("😶‍🌫️")),
+            OnlineStatus::Online,
+        );
+        Ok(())
     }
 
     /// Sends patch notes to a channel
@@ -284,7 +274,9 @@ impl MotorbotPlugin for PatchesPlugin {
         scheduler.every(30.minutes()).run(move || {
             let plugin = plugin.clone();
             async move {
-                plugin.update().await;
+                plugin.update().await.unwrap_or_else(|e| {
+                    error!("Error during scheduled update: {:?}", e);
+                });
             }
         });
 
