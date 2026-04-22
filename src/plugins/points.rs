@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 use serenity::all::{
     CommandOptionType, CreateCommand, CreateCommandOption,
-    CreateInteractionResponse, CreateInteractionResponseMessage, GuildId,
-    Interaction, Message, Reaction, ReactionType, ResolvedValue,
+    CreateInteractionResponse, CreateInteractionResponseMessage, EmojiId,
+    GuildId, Interaction, Message, Reaction, ReactionType, ResolvedValue,
 };
 use tracing::info;
 
@@ -116,18 +116,22 @@ impl MotorbotPlugin for PointsPlugin {
                 message
                     .react(
                         &p_ctx.ctx.http,
-                        ReactionType::try_from("<:upvote:1494772872500088913>")
-                            .unwrap(),
+                        ReactionType::Custom {
+                            animated: false,
+                            id: EmojiId::new(1494772872500088913),
+                            name: Some("upvote".to_string()),
+                        },
                     )
                     .await
                     .map_err(|err| PluginError::FailedToRespond { err })?;
                 message
                     .react(
                         &p_ctx.ctx.http,
-                        ReactionType::try_from(
-                            "<:downvote:1494772826945617940>",
-                        )
-                        .unwrap(),
+                        ReactionType::Custom {
+                            animated: false,
+                            id: EmojiId::new(1494772826945617940),
+                            name: Some("downvote".to_string()),
+                        },
                     )
                     .await
                     .map_err(|err| PluginError::FailedToRespond { err })?;
