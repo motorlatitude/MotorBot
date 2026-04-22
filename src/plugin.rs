@@ -115,6 +115,18 @@ pub trait MotorbotPlugin {
 /// ).ok_or(PluginError::MissingChannelId)?.id.get();
 /// ```
 macro_rules! option {
+    ($cmd:ident, $name:expr, ResolvedValue::User) => {{
+        let option = $cmd.iter().find(|opt| opt.name == $name);
+        if let Some(option) = option {
+            if let ResolvedValue::User(value, _) = option.value {
+                Some(value)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    }};
     ($cmd:ident, $name:expr, $t:path) => {{
         let option = $cmd.iter().find(|opt| opt.name == $name);
         if let Some(option) = option {

@@ -6,7 +6,7 @@ use serenity::all::{
 };
 use tracing::info;
 
-use crate::plugin::PluginError;
+use crate::plugin::{option, PluginError};
 use crate::{Error, Result};
 
 use crate::{
@@ -263,9 +263,7 @@ impl MotorbotPlugin for PointsPlugin {
 
         let options = command.data.options();
         let first_option = options.first();
-        if first_option.is_some() {
-            let resolved_option =
-                first_option.ok_or(PluginError::InvalidSubCommand)?;
+        if let Some(resolved_option) = first_option {
             match resolved_option.name {
                 "channel" => {
                     let ResolvedValue::SubCommand(subcommand) =
@@ -336,25 +334,12 @@ impl MotorbotPlugin for PointsPlugin {
                         .map_err(|err| PluginError::FailedToRespond { err })?;
                 }
                 "user" => {
-                    let ResolvedValue::SubCommand(subcommand) =
-                        resolved_option.value.clone()
-                    else {
-                        return Err(Error::Plugin(
-                            PluginError::InvalidSubCommand,
-                        ));
-                    };
-                    let user = subcommand
-                        .iter()
-                        .find_map(|opt| {
-                            if opt.name == "user" {
-                                if let ResolvedValue::User(user, _) = opt.value
-                                {
-                                    return Some(user);
-                                }
-                            }
-                            None
-                        })
-                        .ok_or(PluginError::InvalidUser)?;
+                    let user: &serenity::all::User = option! {
+                        options,
+                        "user",
+                        ResolvedValue::User
+                    }
+                    .ok_or(PluginError::InvalidUser)?;
                     let username = user.tag();
                     let user_score = db.user_score(&user.id.get()).await?;
                     command.create_response(
