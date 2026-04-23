@@ -43,9 +43,9 @@ jobs:
           cargo clippy
           --all-features
           --message-format=json | clippy-sarif | tee rust-clippy-results.sarif | sarif-fmt
-        continue-on-error: true
 
       - name: Upload analysis results to GitHub
+        if: ${{ !cancelled() }}
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: rust-clippy-results.sarif
@@ -53,5 +53,5 @@ jobs:
 
         # Fail the action if errors are found
       - name: CheckIfClippyFailed
-        if: steps.clippy.outcome == 'failure'
+        if: ${{ !cancelled() && steps.clippy.outcome == 'failure' }}
         run: exit 1
