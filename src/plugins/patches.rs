@@ -343,7 +343,7 @@ impl MotorbotPlugin for PatchesPlugin {
                     .game_ids_for_guild(guild_id.get())
                     .await?;
                 let mut response = String::new();
-                for (count, game_id) in (1..).zip(game_ids.into_iter()) {
+                for (count, game_id) in (1..).zip(game_ids) {
                     let game_data = GameData::from_id(&game_id).await?;
                     let guild_data = game_data
                         .guild_data
