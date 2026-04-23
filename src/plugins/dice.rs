@@ -6,7 +6,7 @@ use serenity::all::{
 };
 use tracing::info;
 
-use crate::plugin::PluginError;
+use crate::plugin::{option, PluginError};
 use crate::Result;
 
 use crate::plugin::{MotorbotPlugin, PluginContext, PluginInfo};
@@ -69,17 +69,13 @@ impl MotorbotPlugin for DicePlugin {
         }
 
         let options = &command.data.options();
-        let sides = options
-            .iter()
-            .find_map(|opt| {
-                if opt.name == "sides" {
-                    if let ResolvedValue::Integer(value) = opt.value {
-                        return Some(value as u64);
-                    }
-                }
-                None
-            })
-            .unwrap_or(6); // Default to a 6-sided die if no option provided
+        let sides = option!(options, "sides", ResolvedValue::Integer)
+            .ok_or_else(|| 6i64)
+            .unwrap_or(6i64); // Default to a 6-sided die if no option provided
+
+        // clamp sides to a reasonable range (e.g., 2 to 100)
+        let sides = sides.clamp(2, 100);
+
         let dice_roll = rand::random_range(1..=sides);
         command
             .create_response(
