@@ -13,7 +13,6 @@ on:
   push:
     branches: [ "main", "develop" ]
   pull_request:
-    # The branches below must be a subset of the branches above
     branches: [ "main", "develop" ]
 
 concurrency:
@@ -42,11 +41,16 @@ jobs:
       # - name: Install required cargo
       #   run: cargo install clippy-sarif sarif-fmt
 
-      - name: cargo clippy
-        uses: actions-rs/clippy-check@b5b5f21f4797c02da247df37026fcd0a5024aa4d # v1.0.7
+      - name: Run Clippy
+        uses: auguwu/clippy-action@1.5.0
         with:
-          args: --all-targets --all-features
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{secrets.GITHUB_TOKEN}}
+
+      # - name: cargo clippy
+      #   uses: actions-rs/clippy-check@b5b5f21f4797c02da247df37026fcd0a5024aa4d # v1.0.7
+      #   with:
+      #     args: --all-targets --all-features
+      #     token: ${{ secrets.GITHUB_TOKEN }}
 
       # - name: Run rust-clippy
       #   id: clippy
