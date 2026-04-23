@@ -7,6 +7,14 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Debug, From, Display)]
 #[non_exhaustive]
 pub enum Error {
+    /// An error indicating that a plugin failed to send an event due to an
+    /// issue with the Serenity context or API.
+    #[display("Failed to send event: {}", err)]
+    FailedToSendEvent {
+        /// The error that occurred during sending the event
+        err: serenity::Error,
+    },
+
     // -- Internal
     /// An error related to storage operations, such as database interactions.
     #[from]

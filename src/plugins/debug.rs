@@ -230,6 +230,8 @@ impl MotorbotPlugin for DebugPlugin {
                         )
                         .await
                         .map_err(|err| PluginError::FailedToRespond { err })?;
+
+                    db.close().await?;
                 }
             }
             _ => {

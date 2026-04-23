@@ -60,7 +60,7 @@ impl PatchesPlugin {
         // against db if patch notes are different, post patch notes to channel
         for game_id in games_to_monitor {
             // Data from DB
-            let game_data = GameData::from_id(&game_id).await;
+            let game_data = GameData::from_id(&game_id).await?;
             // Patch notes from Platform
             let patch_notes =
                 PatchNotes::fetch_for_platform(game_data.platform, &game_id)
@@ -345,7 +345,7 @@ impl MotorbotPlugin for PatchesPlugin {
                 let mut response = String::new();
                 let mut count = 1;
                 for game_id in game_ids {
-                    let game_data = GameData::from_id(&game_id).await;
+                    let game_data = GameData::from_id(&game_id).await?;
                     let guild_data = game_data
                         .guild_data
                         .iter()
@@ -483,6 +483,7 @@ impl MotorbotPlugin for PatchesPlugin {
             .await
             .map_err(|err| PluginError::FailedToRespond { err })?;
 
+        db.close().await?;
         Ok(())
     }
 }

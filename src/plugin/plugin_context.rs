@@ -6,6 +6,7 @@ use tracing::error;
 use crate::{
     plugin::MotorbotPlugin,
     storage::{Database, GuildConfigKey, GuildConfigValue},
+    Error, Result,
 };
 
 /// The context passed to plugins, containing the Serenity context and
@@ -88,61 +89,52 @@ impl<'a> PluginContext<'a> {
     ///
     /// Plugins can use this method to log important events or information to
     /// the bot events channel for easier monitoring and debugging.
-    pub async fn send_event(&self, event: PluginEvent) {
-        match Database::open().await {
-            Err(why) => {
-                error!("Error opening database: {:?}", why);
-            }
-            Ok(mut db) => {
-                let guilds = self.ctx.cache.guilds();
-                let mut event_channel_ids = Vec::new();
-                for guild_id in guilds {
-                    let channel_id: Option<u64> = match db
-                        .get_guild_config(
-                            guild_id.get(),
-                            GuildConfigKey::EventsChannel,
-                        )
-                        .await
-                    {
-                        Ok(Some(config_value)) => match config_value.value {
-                            GuildConfigValue::ChannelId(id) => Some(id),
-                            _ => None,
-                        },
-                        Ok(None) => None,
-                        Err(why) => {
-                            error!("Error fetching events channel from database: {:?}", why);
-                            None
-                        }
-                    };
-                    if let Some(channel_id) = channel_id {
-                        event_channel_ids.push(channel_id);
-                    }
+    pub async fn send_event(&self, event: PluginEvent) -> Result<()> {
+        let mut db = Database::open().await?;
+        let guilds = self.ctx.cache.guilds();
+        let mut event_channel_ids = Vec::new();
+        for guild_id in guilds {
+            let channel_id: Option<u64> = match db
+                .get_guild_config(guild_id.get(), GuildConfigKey::EventsChannel)
+                .await
+            {
+                Ok(Some(config_value)) => match config_value.value {
+                    GuildConfigValue::ChannelId(id) => Some(id),
+                    _ => None,
+                },
+                Ok(None) => None,
+                Err(why) => {
+                    error!(
+                        "Error fetching events channel from database: {:?}",
+                        why
+                    );
+                    None
                 }
-                let level_color = match event.level {
-                    PluginEventLevel::Debug => 0xAAAAAA,
-                    PluginEventLevel::Info => 0x55B8F9,
-                    PluginEventLevel::Warning => 0xFAE577,
-                    PluginEventLevel::Error => 0xFF0000,
-                };
-                let mut embed_builder = CreateEmbed::default()
-                    .title(format!("[{}] {}", event.level, event.name))
-                    .color(level_color);
-                if let Some(description) = event.description {
-                    embed_builder = embed_builder.description(description);
-                }
-                let builder = CreateMessage::new().embed(embed_builder);
-                for channel_id in event_channel_ids {
-                    if let Err(why) = ChannelId::new(channel_id)
-                        .send_message(&self.ctx.http, builder.clone())
-                        .await
-                    {
-                        error!(
-                            "Error sending message to channel {}: {:?}",
-                            channel_id, why
-                        );
-                    }
-                }
+            };
+            if let Some(channel_id) = channel_id {
+                event_channel_ids.push(channel_id);
             }
         }
+        let level_color = match event.level {
+            PluginEventLevel::Debug => 0xAAAAAA,
+            PluginEventLevel::Info => 0x55B8F9,
+            PluginEventLevel::Warning => 0xFAE577,
+            PluginEventLevel::Error => 0xFF0000,
+        };
+        let mut embed_builder = CreateEmbed::default()
+            .title(format!("[{}] {}", event.level, event.name))
+            .color(level_color);
+        if let Some(description) = event.description {
+            embed_builder = embed_builder.description(description);
+        }
+        let builder = CreateMessage::new().embed(embed_builder);
+        for channel_id in event_channel_ids {
+            ChannelId::new(channel_id)
+                .send_message(&self.ctx.http, builder.clone())
+                .await
+                .map_err(|err| Error::FailedToSendEvent { err })?;
+        }
+        db.close().await?;
+        Ok(())
     }
 }

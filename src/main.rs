@@ -116,7 +116,10 @@ impl EventHandler for Handler {
                     VERSION
                 )),
             )
-            .await;
+            .await
+            .unwrap_or_else(|err| {
+                error!("Failed to send startup event: {:?}", err);
+            });
         for plugin in self.plugins.iter() {
             match plugin.on_ready(&plugin_ctx).await {
                 Ok(()) => {}
@@ -157,7 +160,10 @@ impl EventHandler for Handler {
                                 e
                             )),
                         )
-                        .await;
+                        .await
+                        .unwrap_or_else(|err| {
+                            error!("Failed to send error event: {:?}", err);
+                        });
                 }
             }
         }

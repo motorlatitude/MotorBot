@@ -27,6 +27,7 @@ impl PointsPlugin {
         let current_user_score = db.user_score(user_id).await?;
         db.set_user_score(user_id, current_user_score.score + points)
             .await?;
+        db.close().await?;
         Ok(())
     }
 
@@ -40,6 +41,7 @@ impl PointsPlugin {
         let current_user_score = db.user_score(user_id).await?;
         db.set_user_score(user_id, current_user_score.score - points)
             .await?;
+        db.close().await?;
         Ok(())
     }
 }
@@ -138,6 +140,7 @@ impl MotorbotPlugin for PointsPlugin {
                     .map_err(|err| PluginError::FailedToRespond { err })?;
             }
         }
+        db.close().await?;
         Ok(())
     }
 
@@ -193,6 +196,7 @@ impl MotorbotPlugin for PointsPlugin {
                 }
             }
         }
+        db.close().await?;
         Ok(())
     }
 
@@ -248,6 +252,7 @@ impl MotorbotPlugin for PointsPlugin {
                 }
             }
         }
+        db.close().await?;
         Ok(())
     }
 
