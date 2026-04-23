@@ -16,6 +16,10 @@ on:
     # The branches below must be a subset of the branches above
     branches: [ "main", "develop" ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rust-clippy-analyze:
     name: Run rust-clippy analysing
@@ -34,24 +38,30 @@ jobs:
       - name: Add Clippy component
         run: rustup component add clippy
 
-      - name: Install required cargo
-        run: cargo install clippy-sarif sarif-fmt
+      # - name: Install required cargo
+      #   run: cargo install clippy-sarif sarif-fmt
 
-      - name: Run rust-clippy
-        id: clippy
-        run:
-          cargo clippy
-          --all-features
-          --message-format=json | clippy-sarif | tee rust-clippy-results.sarif | sarif-fmt
-
-      - name: Upload analysis results to GitHub
-        if: ${{ !cancelled() }}
-        uses: github/codeql-action/upload-sarif@v4
+      - name: cargo clippy
+        uses: actions-rs/clippy-check@b5b5f21f4797c02da247df37026fcd0a5024aa4d # v1.0.7
         with:
-          sarif_file: rust-clippy-results.sarif
-          wait-for-processing: true
+          args: --all-targets --all-features
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-        # Fail the action if errors are found
-      - name: CheckIfClippyFailed
-        if: ${{ !cancelled() && steps.clippy.outcome == 'failure' }}
-        run: exit 1
+      # - name: Run rust-clippy
+      #   id: clippy
+      #   run:
+      #     cargo clippy
+      #     --all-features
+      #     --message-format=json | clippy-sarif | tee rust-clippy-results.sarif | sarif-fmt
+
+      # - name: Upload analysis results to GitHub
+      #   if: ${{ !cancelled() }}
+      #   uses: github/codeql-action/upload-sarif@v4
+      #   with:
+      #     sarif_file: rust-clippy-results.sarif
+      #     wait-for-processing: true
+
+      #   # Fail the action if errors are found
+      # - name: CheckIfClippyFailed
+      #   if: ${{ !cancelled() && steps.clippy.outcome == 'failure' }}
+      #   run: exit 1
