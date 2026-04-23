@@ -31,6 +31,16 @@ pub enum Error {
     /// somewhere else (e.g. in a DM)
     ExpectedGuild,
 
+    /// An error indicating that an internal API response was invalid or could
+    /// not be parsed as expected, such as when calling an external API for a
+    /// plugin's functionality and receiving a response that doesn't match the
+    /// expected format or contains invalid data.
+    #[display("Received an invalid response from an internal API: {}", err)]
+    InvalidInternalAPIResponse {
+        /// The error that occurred during parsing or handling the API response
+        err: Box<dyn std::error::Error + Send + Sync>,
+    },
+
     /// A channel was expected but the provided option was either not a channel
     /// or was missing entirely.
     #[display(

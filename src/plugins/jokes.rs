@@ -85,8 +85,19 @@ impl JokesPlugin {
             .await?;
 
         let joke = http_response.json::<Response>().await?;
-        let setup = joke.body[0].setup.to_string();
-        let punchline = joke.body[0].punchline.to_string();
+        let Some(first_joke) = joke.body.first() else {
+            error!("Dad jokes API returned an empty body array");
+            return Err(Error::Plugin(
+                PluginError::InvalidInternalAPIResponse {
+                    err: Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "Empty joke array",
+                    )),
+                },
+            ));
+        };
+        let setup = first_joke.setup.to_string();
+        let punchline = first_joke.punchline.to_string();
 
         for channel_id in channel_ids {
             let pixel_animal_emojis = [
