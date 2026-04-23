@@ -108,10 +108,11 @@ impl MotorbotPlugin for PointsPlugin {
         if let GuildConfigValue::ChannelIds(channel_ids) =
             stored_channel_ids.value()
         {
+            let bot_user_id = p_ctx.ctx.cache.current_user().id.get();
             if (!message.attachments.is_empty()
                 || message.content.contains("http"))
                 && channel_ids.contains(&message.channel_id.get())
-                && !message.author.id.eq(&169554882674556930)
+                && !message.author.id.eq(&bot_user_id)
             {
                 message
                     .react(
