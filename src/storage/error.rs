@@ -7,7 +7,7 @@ use std::fmt;
 #[non_exhaustive]
 pub enum Error {
     /// A Rusqlite error
-    RusqliteError {
+    Rusqlite {
         /// The SQL query that caused the error
         query: String,
         /// The Rusqlite error that occurred
@@ -40,7 +40,7 @@ impl Error {
     /// # Returns
     /// A new `Error` instance containing the query and the error.
     pub fn with_sql(e: rusqlite::Error, query: &str) -> Self {
-        Self::RusqliteError {
+        Self::Rusqlite {
             query: query.into(),
             err: e,
         }
@@ -49,7 +49,7 @@ impl Error {
 
 impl From<rusqlite::Error> for Error {
     fn from(e: rusqlite::Error) -> Self {
-        Self::RusqliteError {
+        Self::Rusqlite {
             query: String::new(),
             err: e,
         }
@@ -59,7 +59,7 @@ impl From<rusqlite::Error> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-      Self::RusqliteError { query, err } => write!(f, "Database error: {}. Query: {}", err, query),
+      Self::Rusqlite { query, err } => write!(f, "Database error: {}. Query: {}", err, query),
       Self::UnableToConnect { err } => write!(f, "Connection error: {}", err),
       Self::InvalidSchemaVersion { expected, found } => write!(f, "Invalid schema version: expected {}, found {}", expected, found),
       Self::InvalidConnection => write!(f, "Invalid connection state: connection is not initialized or has been closed"),

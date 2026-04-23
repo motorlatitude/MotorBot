@@ -96,7 +96,8 @@ impl Steam {
             images.push(path.replace("{STEAM_CLAN_IMAGE}", STEAM_CLAN_IMAGE));
         }
         let re3 = Regex::new(r"\[url=(.*?)](.*?)\[/url]").unwrap();
-        let re_youtube = Regex::new(r"\[previewyoutube=(.*?)]\[/previewyoutube]").unwrap();
+        let re_youtube =
+            Regex::new(r"\[previewyoutube=(.*?)]\[/previewyoutube]").unwrap();
         // Remove img tags from content
         let parsed_content_1 = re.replace_all(&content, "");
         let parsed_content_2 = re2.replace_all(&parsed_content_1, "");
@@ -112,22 +113,25 @@ impl Steam {
             .to_string()
             .replace("\"", "");
         let mut image = "";
-        if images.len() > 0 {
+        if !images.is_empty() {
             image = &images[0];
         }
-        let truncated_content = match parsed_trimmed_content.char_indices().nth(400) {
-            None => parsed_trimmed_content,
-            Some((idx, _)) => &parsed_trimmed_content[..idx],
-        };
+        let truncated_content =
+            match parsed_trimmed_content.char_indices().nth(400) {
+                None => parsed_trimmed_content,
+                Some((idx, _)) => &parsed_trimmed_content[..idx],
+            };
 
         Some(SteamNews {
             title: patch_notes_title,
             content: format!(
                 "{}{}",
                 &truncated_content,
-                (parsed_trimmed_content.len() > 400)
-                    .then(|| "...")
-                    .unwrap_or("")
+                if parsed_trimmed_content.len() > 400 {
+                    "..."
+                } else {
+                    ""
+                }
             ),
             url: patch_notes_url,
             image: image.to_string(),

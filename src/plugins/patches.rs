@@ -64,7 +64,7 @@ impl PatchesPlugin {
             // Patch notes from Platform
             let patch_notes =
                 PatchNotes::fetch_for_platform(game_data.platform, &game_id)
-                    .await;
+                    .await?;
             // Compare gid
             let game_news_items = match &game_data.news_items {
                 Some(items) => items,
@@ -343,8 +343,7 @@ impl MotorbotPlugin for PatchesPlugin {
                     .game_ids_for_guild(guild_id.get())
                     .await?;
                 let mut response = String::new();
-                let mut count = 1;
-                for game_id in game_ids {
+                for (count, game_id) in (1..).zip(game_ids.into_iter()) {
                     let game_data = GameData::from_id(&game_id).await?;
                     let guild_data = game_data
                         .guild_data
@@ -358,7 +357,6 @@ impl MotorbotPlugin for PatchesPlugin {
                         "{}. {} ({})\n",
                         count, game_name, game_data.id
                     ));
-                    count += 1;
                 }
                 if response.is_empty() {
                     "No games are currently being monitored".to_string()
@@ -428,7 +426,7 @@ impl MotorbotPlugin for PatchesPlugin {
                                 db.add_game(
                                         id,
                                         guild_id.get(),
-                                        Platform::from(platform),
+                                        Platform::try_from(platform)?,
                                         name,
                                         thumbnail,
                                         &color,

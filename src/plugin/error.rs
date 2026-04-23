@@ -1,5 +1,7 @@
 use derive_more::{Display, From};
 
+use crate::plugins::patches::platforms::platform::Platform;
+
 /// Custom error type for plugin operations.
 #[derive(Debug, Display, From)]
 #[non_exhaustive]
@@ -96,6 +98,21 @@ pub enum Error {
     /// set during initialization or operation.
     #[display("Plugin is in an invalid internal state")]
     InvalidInternalState,
+
+    /// An error indicating that fetching patch notes for a game failed, such
+    /// as when calling an external API to retrieve patch notes and receiving an
+    /// error response or an invalid response that cannot be parsed as patch
+    /// notes.
+    #[display(
+        "Failed to fetch patch notes for game '{}'on platform '{}'",
+        game_id,
+        platform
+    )]
+    FetchPatchNotesFailed {
+        /// The platform for which fetching patch notes failed
+        platform: Platform,
+        game_id: String,
+    },
 }
 
 impl std::error::Error for Error {}

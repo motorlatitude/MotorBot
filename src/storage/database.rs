@@ -3,6 +3,7 @@ use std::path::Path;
 use tracing::{debug, error, info, warn};
 
 use crate::{
+    plugin::PluginError,
     plugins::patches::{
         game_data::{GameData, GuildGameData},
         platforms::platform::Platform,
@@ -436,13 +437,17 @@ impl Database {
                     Error::Storage(StorageError::with_sql(e, Q_GAME_DETAILS))
                 })?;
 
-                let mut platform: Platform = Platform::Unknown;
+                let mut platform: Option<Platform> = None;
                 let news_items = None;
                 let mut guild_data = Vec::new();
                 while let Some(row) = rows.next()? {
                     let guild_str: String = row.get(0)?;
                     let platform_str: String = row.get(1)?;
-                    platform = Platform::from(platform_str.as_str());
+                    platform = Some(
+                        Platform::try_from(platform_str.as_str()).map_err(
+                            |_| Error::Plugin(PluginError::InvalidGamePlatform),
+                        )?,
+                    );
                     let name: String = row.get(2)?;
                     let thumbnail: String = row.get(3)?;
                     let color: String = row.get(4)?;
@@ -453,12 +458,16 @@ impl Database {
                         color,
                     });
                 }
-                Ok(GameData {
-                    id: game_id.to_string(),
-                    platform,
-                    news_items,
-                    guild_data,
-                })
+                if let Some(platform) = platform {
+                    Ok(GameData {
+                        id: game_id.to_string(),
+                        platform,
+                        news_items,
+                        guild_data,
+                    })
+                } else {
+                    Err(Error::Plugin(PluginError::InvalidGamePlatform))
+                }
             }
             None => Err(Error::Storage(StorageError::InvalidConnection)),
         }

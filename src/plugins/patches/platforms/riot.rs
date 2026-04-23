@@ -23,22 +23,22 @@ use tracing::{debug, error};
 /// use patches::platforms::riot::RiotGameId;
 ///
 /// let game_id = RiotGameId::from_str("lol").unwrap();
-/// assert_eq!(game_id, RiotGameId::LoL);
+/// assert_eq!(game_id, RiotGameId::Lol);
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub enum RiotGameId {
-    LoL,
-    TFT,
-    VAL,
+    Lol,
+    Tft,
+    Val,
     Unknown,
 }
 
 impl fmt::Display for RiotGameId {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            RiotGameId::LoL => write!(f, "lol"),
-            RiotGameId::TFT => write!(f, "tft"),
-            RiotGameId::VAL => write!(f, "val"),
+            RiotGameId::Lol => write!(f, "lol"),
+            RiotGameId::Tft => write!(f, "tft"),
+            RiotGameId::Val => write!(f, "val"),
             RiotGameId::Unknown => write!(f, "unknown"),
         }
     }
@@ -49,9 +49,9 @@ impl FromStr for RiotGameId {
 
     fn from_str(input: &str) -> Result<RiotGameId, Self::Err> {
         match input {
-            "lol" => Ok(RiotGameId::LoL),
-            "tft" => Ok(RiotGameId::TFT),
-            "val" => Ok(RiotGameId::VAL),
+            "lol" => Ok(RiotGameId::Lol),
+            "tft" => Ok(RiotGameId::Tft),
+            "val" => Ok(RiotGameId::Val),
             _ => Ok(RiotGameId::Unknown),
         }
     }
@@ -78,9 +78,11 @@ const LOL_BASE_NEWS_URL: &str = "https://www.leagueoflegends.com/en-gb/news/";
 /// League of Legends base url
 const LOL_BASE_URL: &str = "https://www.leagueoflegends.com/en-gb/";
 /// Teamfight Tactics base page data url
-const TFT_BASE_NEWS_URL: &str = "https://teamfighttactics.leagueoflegends.com/en-gb/news/";
+const TFT_BASE_NEWS_URL: &str =
+    "https://teamfighttactics.leagueoflegends.com/en-gb/news/";
 /// Teamfight Tactics base url
-const TFT_BASE_URL: &str = "https://teamfighttactics.leagueoflegends.com/en-gb/";
+const TFT_BASE_URL: &str =
+    "https://teamfighttactics.leagueoflegends.com/en-gb/";
 /// Valorant's base page data url
 const VAL_BASE_NEWS_URL: &str = "https://playvalorant.com/en-gb/news/";
 /// Valorant's base url
@@ -118,39 +120,43 @@ impl Riot {
     pub fn parse_news(&self, game_id: &str, raw_html: String) -> Vec<RiotNews> {
         let document = Html::parse_document(raw_html.as_str());
         let mut articles: Vec<RiotNews> = vec![];
-        let selector = Selector::parse(r#"section[id="news"] a[role="button"]"#).unwrap();
-        let next_data_selector = Selector::parse(r#"script[id="__NEXT_DATA__"]"#).unwrap();
+        let selector =
+            Selector::parse(r#"section[id="news"] a[role="button"]"#).unwrap();
+        let next_data_selector =
+            Selector::parse(r#"script[id="__NEXT_DATA__"]"#).unwrap();
         let content_description_selector =
             Selector::parse(r#"div[data-testid="card-description"]"#).unwrap();
         for article in document.select(&selector) {
-            let mut url: String = article.value().attr("href").unwrap_or_default().to_string();
+            let mut url: String =
+                article.value().attr("href").unwrap_or_default().to_string();
             if url.starts_with("/") {
                 let base_url = match RiotGameId::from_str(game_id).unwrap() {
-                    RiotGameId::LoL => LOL_BASE_URL,
-                    RiotGameId::TFT => TFT_BASE_URL,
-                    RiotGameId::VAL => VAL_BASE_URL,
+                    RiotGameId::Lol => LOL_BASE_URL,
+                    RiotGameId::Tft => TFT_BASE_URL,
+                    RiotGameId::Val => VAL_BASE_URL,
                     RiotGameId::Unknown => "",
                 };
                 url = format!("{}{}", base_url, url);
             }
             let title = article.value().attr("aria-label").unwrap_or_default();
-            let content_description = match article
-                .select(&content_description_selector)
-                .next() {
-                Some(c) => c.text().collect::<String>(),
-                None => "".to_string(),
-            };
+            let content_description =
+                match article.select(&content_description_selector).next() {
+                    Some(c) => c.text().collect::<String>(),
+                    None => "".to_string(),
+                };
             // image is not available in the html and would require rendering
             // the page to get the image url, however a script JSON element can be
             // parsed in order to retreive the image url from JSON
             //let next_data = document.select(&next_data_selector).next().unwrap();
-            let next_data_text = match document.select(&next_data_selector).next() {
-                Some(d) => d.text().collect::<String>(),
-                None => "{}".to_string(),
-            };
-            let next_data_json: serde_json::Value = serde_json::from_str(&next_data_text).unwrap();
-            let image = next_data_json["props"]["pageProps"]["page"]["blades"][2]["items"][0]
-                ["media"]["url"]
+            let next_data_text =
+                match document.select(&next_data_selector).next() {
+                    Some(d) => d.text().collect::<String>(),
+                    None => "{}".to_string(),
+                };
+            let next_data_json: serde_json::Value =
+                serde_json::from_str(&next_data_text).unwrap();
+            let image = next_data_json["props"]["pageProps"]["page"]["blades"]
+                [2]["items"][0]["media"]["url"]
                 .as_str()
                 .unwrap_or_default();
             let mut hasher = DefaultHasher::new();
@@ -164,8 +170,8 @@ impl Riot {
                 gid,
             };
             //println!("{:?}", news);
-            if articles.iter().find(|a| a.title == news.title).is_none() { 
-                articles.push(news); 
+            if articles.iter().find(|a| a.title == news.title).is_none() {
+                articles.push(news);
             }
         }
         articles
@@ -182,36 +188,16 @@ impl Riot {
     ) -> Result<String, StatusCode> {
         let client = reqwest::Client::new();
         let mut url = format!("{}{}", LOL_BASE_NEWS_URL, "");
+        let article_path = article_path.unwrap_or("");
         match RiotGameId::from_str(game_id).unwrap() {
-            RiotGameId::LoL => {
-                url = format!(
-                    "{}{}",
-                    LOL_BASE_NEWS_URL,
-                    article_path
-                        .is_some()
-                        .then(|| article_path.unwrap())
-                        .unwrap_or("")
-                );
+            RiotGameId::Lol => {
+                url = format!("{}{}", LOL_BASE_NEWS_URL, article_path);
             }
-            RiotGameId::TFT => {
-                url = format!(
-                    "{}{}",
-                    TFT_BASE_NEWS_URL,
-                    article_path
-                        .is_some()
-                        .then(|| article_path.unwrap())
-                        .unwrap_or("")
-                );
+            RiotGameId::Tft => {
+                url = format!("{}{}", TFT_BASE_NEWS_URL, article_path);
             }
-            RiotGameId::VAL => {
-                url = format!(
-                    "{}{}",
-                    VAL_BASE_NEWS_URL,
-                    article_path
-                        .is_some()
-                        .then(|| article_path.unwrap())
-                        .unwrap_or("")
-                );
+            RiotGameId::Val => {
+                url = format!("{}{}", VAL_BASE_NEWS_URL, article_path);
             }
             RiotGameId::Unknown => {}
         }
