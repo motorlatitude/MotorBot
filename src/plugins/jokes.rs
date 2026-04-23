@@ -192,7 +192,7 @@ impl MotorbotPlugin for JokesPlugin {
         tokio::spawn(async move {
             loop {
                 scheduler.run_pending().await;
-                tokio::time::sleep(Duration::from_millis(100)).await;
+                tokio::time::sleep(Duration::from_mins(5)).await;
             }
         });
 

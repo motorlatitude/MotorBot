@@ -10,7 +10,7 @@ use crate::{
     storage::StorageError,
 };
 
-pub use crate::{Error, Result};
+use crate::{Error, Result};
 /// The current schema version of the database. This is used to manage
 /// database migrations in the future. If the schema changes, this version
 /// should be incremented, and migration logic should be added.

@@ -40,7 +40,8 @@ impl PatchesPlugin {
 
     /// Looks for new patch notes for games
     pub async fn update(&self) -> Result<()> {
-        let ctx = &self.ctx.clone().ok_or(PluginError::InvalidInternalState)?;
+        let ctx =
+            &self.ctx.as_ref().ok_or(PluginError::InvalidInternalState)?;
         info!("Updating sources...");
         ctx.set_presence(
             Some(ActivityData::custom("🧭 Exploring...")),
@@ -283,7 +284,7 @@ impl MotorbotPlugin for PatchesPlugin {
         tokio::spawn(async move {
             loop {
                 scheduler.run_pending().await;
-                tokio::time::sleep(Duration::from_millis(100)).await;
+                tokio::time::sleep(Duration::from_mins(1)).await;
             }
         });
 
