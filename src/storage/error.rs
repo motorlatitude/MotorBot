@@ -15,7 +15,7 @@ pub enum Error {
     },
     /// A connection error, typically occurs when the
     /// database file cannot be accessed or created
-    ConnectionError {
+    UnableToConnect {
         /// The error that occurred during connection
         err: rusqlite::Error,
     },
@@ -60,7 +60,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
       Self::RusqliteError { query, err } => write!(f, "Database error: {}. Query: {}", err, query),
-      Self::ConnectionError { err } => write!(f, "Connection error: {}", err),
+      Self::UnableToConnect { err } => write!(f, "Connection error: {}", err),
       Self::InvalidSchemaVersion { expected, found } => write!(f, "Invalid schema version: expected {}, found {}", expected, found),
       Self::InvalidConnection => write!(f, "Invalid connection state: connection is not initialized or has been closed"),
     }

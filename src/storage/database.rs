@@ -59,9 +59,9 @@ pub enum GuildConfigValue {
     ChannelIds(Vec<u64>),
 }
 
-impl Into<String> for GuildConfigValue {
-    fn into(self) -> String {
-        match self {
+impl From<GuildConfigValue> for String {
+    fn from(val: GuildConfigValue) -> Self {
+        match val {
             GuildConfigValue::ChannelId(id) => id.to_string(),
             GuildConfigValue::ChannelIds(ids) => ids
                 .into_iter()
@@ -154,11 +154,11 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(Database)` - If the database connection is successfully
-    /// established and the schema version is valid, it returns a
-    /// Database instance.
+    ///   established and the schema version is valid, it returns a
+    ///   Database instance.
     /// * `Err(Error)` - If there is an error during connection, schema
-    /// version validation, or table creation, it returns an appropriate
-    /// [Error] variant.
+    ///   version validation, or table creation, it returns an appropriate
+    ///   Error] variant.
     pub async fn open() -> Result<Self> {
         let default_db_path = "/data/";
         // Retrieve the database path from the environment variable, or use the default path if not set
@@ -184,7 +184,7 @@ impl Database {
                 }
                 Err(e) => {
                     error!("Failed to create database: {:?}", e);
-                    Err(Error::Storage(StorageError::ConnectionError {
+                    Err(Error::Storage(StorageError::UnableToConnect {
                         err: e,
                     }))
                 }
@@ -192,7 +192,7 @@ impl Database {
         } else {
             let mut db = Self {
                 connection: Some(Connection::open(path).map_err(|err| {
-                    Error::Storage(StorageError::ConnectionError { err })
+                    Error::Storage(StorageError::UnableToConnect { err })
                 })?),
             };
             let version = db.schema_version().await?;
@@ -216,11 +216,11 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(UserScore)` - If the user score is found, it returns a
-    /// [UserScore] struct containing the user ID and score. If the
-    /// user is not found, it returns a UserScore with a score of 0.
+    ///   [UserScore] struct containing the user ID and score. If the
+    ///   user is not found, it returns a UserScore with a score of 0.
     /// * `Err(Error)` - If there is an error during the
-    /// database query, it returns a [Error] variant with details
-    /// about the failure.
+    ///   database query, it returns a [Error] variant with details
+    ///   about the failure.
     pub async fn user_score(&mut self, user_id: &u64) -> Result<UserScore> {
         match &mut self.connection {
             Some(connection) => {
@@ -249,9 +249,7 @@ impl Database {
                     })
                 }
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 
@@ -263,9 +261,9 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(UserScore)` - If the user score is successfully set, it returns
-    /// a [UserScore] struct containing the user ID and the new score.
+    ///   a [UserScore] struct containing the user ID and the new score.
     /// * `Err(Error)` - If there is an error during the database operation, it
-    /// returns a [Error] variant with details about the failure.
+    ///   returns a [Error] variant with details about the failure.
     pub async fn set_user_score(
         &mut self,
         user_id: &u64,
@@ -292,9 +290,7 @@ impl Database {
                     score,
                 })
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 
@@ -305,9 +301,9 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(Vec<String>)` - If the game news is found, it returns a vector of
-    /// news item hashes.
+    ///   news item hashes.
     /// * `Err(Error)` - If there is an error during the database query, it
-    /// returns a [Error] variant with details about the failure.
+    ///   returns a [Error] variant with details about the failure.
     pub async fn game_news(&mut self, game_id: &str) -> Result<Vec<String>> {
         match &mut self.connection {
             Some(connection) => {
@@ -329,9 +325,7 @@ impl Database {
 
                 Ok(news_items)
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 
@@ -339,9 +333,9 @@ impl Database {
     ///
     /// ## Arguments
     /// * `game_id` - The unique ID for the game. This should be a steam game ID
-    /// or a riot games short code (e.g. "val" for Valorant).
+    ///   or a riot games short code (e.g. "val" for Valorant).
     /// * `guild` - The guild ID associated with the game, used to determine which
-    /// Discord server it belongs to.
+    ///   Discord server it belongs to.
     /// * `platform` - The platform for the game.
     /// * `name` - The name of the game.
     /// * `thumbnail` - The URL of the game's thumbnail.
@@ -349,9 +343,9 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(())` - If the game is successfully added to the database, it returns
-    /// an empty Ok result.
+    ///   an empty Ok result.
     /// * `Err(Error)` - If there is an error during the database operation, it
-    /// returns a [Error] variant with details about the failure.
+    ///   returns a [Error] variant with details about the failure.
     pub async fn add_game(
         &mut self,
         game_id: &str,
@@ -381,9 +375,7 @@ impl Database {
                     })?;
                 Ok(())
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 
@@ -392,13 +384,13 @@ impl Database {
     /// ## Arguments
     /// * `game_id` - The unique ID of the game to be removed.
     /// * `guild` - The guild ID associated with the game, used to determine which
-    /// Discord server it belongs to.
+    ///   Discord server it belongs to.
     ///
     /// ## Returns
     /// * `Ok(())` - If the game is successfully removed from the database, it returns
-    /// an empty Ok result.
+    ///   an empty Ok result.
     /// * `Err(Error)` - If there is an error during the database operation, it
-    /// returns a [Error] variant with details about the failure.
+    ///   returns a [Error] variant with details about the failure.
     pub async fn remove_game(
         &mut self,
         game_id: &str,
@@ -415,9 +407,7 @@ impl Database {
                     })?;
                 Ok(())
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 
@@ -428,9 +418,9 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(GameData)` - If the game details are found, it returns a [GameData]
-    /// struct.
+    ///   struct.
     /// * `Err(Error)` - If there is an error during the database query, it
-    /// returns a [Error] variant with details about the failure.
+    ///   returns a [Error] variant with details about the failure.
     pub async fn game_details(&mut self, game_id: &str) -> Result<GameData> {
         match &mut self.connection {
             Some(connection) => {
@@ -470,9 +460,7 @@ impl Database {
                     guild_data,
                 })
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 
@@ -480,9 +468,9 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(Vec<String>)` - If the query is successful, it returns a
-    /// vector of game IDs that are currently being monitored.
+    ///   vector of game IDs that are currently being monitored.
     /// * `Err(Error)` - If there is an error during the database query, it
-    /// returns a [Error] variant with details about the failure.
+    ///   returns a [Error] variant with details about the failure.
     pub async fn game_ids(&mut self) -> Result<Vec<String>> {
         match &mut self.connection {
             Some(connection) => {
@@ -501,9 +489,7 @@ impl Database {
                 }
                 Ok(game_ids)
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 
@@ -514,9 +500,9 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(Vec<String>)` - If the query is successful, it returns a vector of
-    /// game IDs that are currently being monitored for the specified guild.
+    ///   game IDs that are currently being monitored for the specified guild.
     /// * `Err(Error)` - If there is an error during the database query, it
-    /// returns a [Error] variant with details about the failure.
+    ///   returns a [Error] variant with details about the failure.
     pub async fn game_ids_for_guild(
         &mut self,
         guild: u64,
@@ -547,9 +533,7 @@ impl Database {
                 }
                 Ok(game_ids)
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 
@@ -562,9 +546,9 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(())` - If the news item is successfully added, it returns
-    /// an empty Ok result.
+    ///   an empty Ok result.
     /// * `Err(Error)` - If there is an error during the database operation, it
-    /// returns a [Error] variant with details about the failure.
+    ///   returns a [Error] variant with details about the failure.
     pub async fn add_news_item(
         &mut self,
         game_id: &str,
@@ -617,9 +601,7 @@ impl Database {
                 }
                 Ok(())
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 
@@ -631,9 +613,9 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(())` - If the guild configuration is successfully set, it returns
-    /// an empty Ok result.
+    ///   an empty Ok result.
     /// * `Err(Error)` - If there is an error during the database operation, it
-    /// returns a [Error] variant with details about the failure.
+    ///   returns a [Error] variant with details about the failure.
     pub async fn set_guild_config(
         &mut self,
         guild_id: u64,
@@ -658,9 +640,7 @@ impl Database {
                     })?;
                 Ok(())
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 
@@ -672,10 +652,10 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(Option<String>)` - If the guild configuration is found, it returns
-    /// the configuration value as a string wrapped in Some. If the configuration is
-    /// not found, it returns None.
+    ///   the configuration value as a string wrapped in Some. If the configuration is
+    ///   not found, it returns None.
     /// * `Err(Error)` - If there is an error during the database query, it
-    /// returns a [Error] variant with details about the failure.
+    ///   returns a [Error] variant with details about the failure.
     pub async fn get_guild_config(
         &mut self,
         guild_id: u64,
@@ -714,9 +694,7 @@ impl Database {
                     Ok(None)
                 }
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 
@@ -728,14 +706,14 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(())` - If the connection is successfully closed it returns an
-    /// empty Ok result.
+    ///   empty Ok result.
     /// * `Err(Error)` - If there is an error during the closing of the connection
-    /// or if the connection is already closed or not initialized, it returns
-    /// [Error::InvalidConnection] error.
+    ///   or if the connection is already closed or not initialized, it returns
+    ///   [Error::InvalidConnection] error.
     pub async fn close(&mut self) -> Result<()> {
         if let Some(conn) = self.connection.take() {
             conn.close().map_err(|(_conn, err)| {
-                Error::Storage(StorageError::ConnectionError { err })
+                Error::Storage(StorageError::UnableToConnect { err })
             })?;
             self.connection = None;
             Ok(())
@@ -752,15 +730,15 @@ impl Database {
     ///
     /// ## Returns
     /// * `Ok(())` - If the tables are created successfully, it returns an
-    /// empty Ok result.
+    ///   empty Ok result.
     /// * `Err(Error)` - If there is an error during table creation, it returns
-    /// an appropriate [Error] variant with details about the failure.
+    ///   an appropriate [Error] variant with details about the failure.
     async fn create_tables(&mut self) -> Result<()> {
         match &mut self.connection {
             Some(connection) => {
                 // Set the schema version
                 connection
-                    .pragma_update(None, "user_version", &SCHEMA_VERSION)
+                    .pragma_update(None, "user_version", SCHEMA_VERSION)
                     .map_err(|e| {
                         Error::Storage(StorageError::with_sql(
                             e,
@@ -862,9 +840,7 @@ impl Database {
 
                 Ok(())
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 
@@ -898,9 +874,7 @@ impl Database {
                 debug!("Database schema version: {}", version);
                 Ok(version)
             }
-            None => {
-                return Err(Error::Storage(StorageError::InvalidConnection))
-            }
+            None => Err(Error::Storage(StorageError::InvalidConnection)),
         }
     }
 }
