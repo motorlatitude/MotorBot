@@ -1,10 +1,12 @@
+use crate::{plugins::patches::PatchesError, Error};
 use std::{fmt, str::FromStr};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Platform {
+    /// Steam platform
     Steam,
+    /// Riot platform
     Riot,
-    Unknown,
 }
 
 impl Platform {
@@ -20,12 +22,16 @@ impl Platform {
     }
 }
 
-impl From<&str> for Platform {
-    fn from(s: &str) -> Self {
+impl TryFrom<&str> for Platform {
+    type Error = Error;
+
+    fn try_from(s: &str) -> Result<Self, Error> {
         match s {
-            "steam" => Platform::Steam,
-            "riot" => Platform::Riot,
-            _ => Platform::Unknown,
+            "steam" => Ok(Platform::Steam),
+            "riot" => Ok(Platform::Riot),
+            _ => {
+                Err(Error::Custom(Box::new(PatchesError::InvalidGamePlatform)))
+            }
         }
     }
 }
@@ -35,25 +41,20 @@ impl fmt::Display for Platform {
         match self {
             Platform::Steam => write!(f, "steam"),
             Platform::Riot => write!(f, "riot"),
-            Platform::Unknown => write!(f, "unknown"),
         }
     }
 }
 
 impl FromStr for Platform {
-    type Err = ();
+    type Err = Error;
 
     fn from_str(input: &str) -> Result<Platform, Self::Err> {
         match input {
             "steam" => Ok(Platform::Steam),
             "riot" => Ok(Platform::Riot),
-            _ => Ok(Platform::Unknown),
+            _ => {
+                Err(Error::Custom(Box::new(PatchesError::InvalidGamePlatform)))
+            }
         }
-    }
-}
-
-impl Default for Platform {
-    fn default() -> Self {
-        Platform::Unknown
     }
 }

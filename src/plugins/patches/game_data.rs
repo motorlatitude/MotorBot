@@ -1,6 +1,6 @@
-use tracing::error;
-
-use crate::{plugins::patches::platforms::platform::Platform, storage::Database};
+use crate::{
+    plugins::patches::platforms::platform::Platform, storage::Database, Result,
+};
 
 /// Represents the guild specific data associated with a game, including game
 /// name, thumbnail, and color.
@@ -51,45 +51,16 @@ impl GameData {
     /// # Arguments
     /// - `game_id` - The game id
     /// - `guild` - The guild id
-    pub async fn from_id(game_id: &str) -> Self {
-        let mut db = Database::open()
-            .await
-            .expect("Failed to connect to database");
-        let game_details = db.game_details(game_id).await;
-        let news_items: Option<Vec<String>> = match db.game_news(game_id).await {
-            Ok(items) => Some(items),
-            Err(e) => {
-                error!("Failed to fetch game news for game_id {}: {:?}", game_id, e);
-                None
-            }
-        };
-        if let Err(why) = db.close().await {
-            error!("Failed to close database connection {:?}", why);
-        }
-        match game_details {
-            Ok(details) => {
-                GameData {
-                    id: details.id,
-                    platform: details.platform,
-                    news_items,
-                    guild_data: details.guild_data,
-                }
-            },
-            Err(e) => {
-                error!("Failed to fetch game details for game_id {}: {:?}", game_id, e);
-                GameData::default()
-            }
-        }
-    }
-}
-
-impl Default for GameData {
-    fn default() -> Self {
-        Self {
-            id: String::from(""),
-            platform: Platform::default(),
-            news_items: None,
-            guild_data: Vec::new(),
-        }
+    pub async fn from_id(game_id: &str) -> Result<Self> {
+        let mut db = Database::open().await?;
+        let details = db.game_details(game_id).await?;
+        let news_items: Vec<String> = db.game_news(game_id).await?;
+        db.close().await?;
+        Ok(GameData {
+            id: details.id,
+            platform: details.platform,
+            news_items: Some(news_items),
+            guild_data: details.guild_data,
+        })
     }
 }
