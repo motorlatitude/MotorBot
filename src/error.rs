@@ -23,6 +23,14 @@ pub enum Error {
     #[from]
     Plugin(plugin::PluginError),
 
+    // -- Plugin errors
+    /// A plugin encountered an error that doesn't fit into any of the other
+    /// predefined categories, allowing plugins to return custom error messages
+    /// or types that can be displayed or logged without needing to define a new
+    /// variant in the main `Error` enum for every possible plugin error
+    /// scenario.
+    Custom(Box<dyn std::error::Error + Send + Sync>),
+
     // -- External
     /// An error related to the Serenity library, such as issues with the
     /// Discord API.

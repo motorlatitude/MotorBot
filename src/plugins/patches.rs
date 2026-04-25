@@ -21,6 +21,8 @@ use serenity::all::{
 };
 use tracing::{error, info, warn};
 
+pub mod error;
+pub use error::PatchesError;
 pub mod game_data;
 pub mod patch_notes;
 pub mod platforms;
@@ -380,47 +382,41 @@ impl MotorbotPlugin for PatchesPlugin {
                         "id",
                         ResolvedValue::String
                     )
-                    .ok_or(PluginError::InvalidGameId)?;
+                    .ok_or(Error::Custom(Box::new(PatchesError::InvalidGameId)))?;
 
                     let platform = option!(
                         subcommand_options,
                         "platform",
                         ResolvedValue::String
                     )
-                    .ok_or(PluginError::InvalidGamePlatform)?;
+                    .ok_or(Error::Custom(Box::new(PatchesError::InvalidGamePlatform)))?;
                     if !Platform::is_valid_platform(platform) {
-                        return Err(Error::Plugin(
-                            PluginError::InvalidGamePlatform,
-                        ));
+                        return Err(Error::Custom(Box::new(PatchesError::InvalidGamePlatform)));
                     } else {
                         let name = option!(
                             subcommand_options,
                             "name",
                             ResolvedValue::String
-                        ).ok_or(PluginError::InvalidGameName)?;
+                        ).ok_or(Error::Custom(Box::new(PatchesError::InvalidGameName)))?;
                         let thumbnail = option!(
                             subcommand_options,
                             "thumbnail",
                             ResolvedValue::String
-                        ).ok_or(PluginError::InvalidGameThumbnail)?;
+                        ).ok_or(Error::Custom(Box::new(PatchesError::InvalidGameThumbnail)))?;
 
                         if !thumbnail.starts_with("http") {
-                            return Err(Error::Plugin(
-                                PluginError::InvalidGameThumbnail,
-                            ));
+                            return Err(Error::Custom(Box::new(PatchesError::InvalidGameThumbnail)));
                         } else {
                             let raw_color = option!(
                                 subcommand_options,
                                 "color",
                                 ResolvedValue::String
-                            ).ok_or(PluginError::InvalidGameColor)?;
+                            ).ok_or(Error::Custom(Box::new(PatchesError::InvalidGameColor)))?;
 
                             if !raw_color.starts_with("#")
                                 || raw_color.len() != 7
                             {
-                                return Err(Error::Plugin(
-                                    PluginError::InvalidGameColor,
-                                ));
+                                return Err(Error::Custom(Box::new(PatchesError::InvalidGameColor)));
                             } else {
                                 let color = raw_color[1..].to_uppercase();
                                 db.add_game(
@@ -453,7 +449,7 @@ impl MotorbotPlugin for PatchesPlugin {
                         "id",
                         ResolvedValue::String
                     )
-                    .ok_or(PluginError::InvalidGameId)?;
+                    .ok_or(Error::Custom(Box::new(PatchesError::InvalidGameId)))?;
                     let guild = command
                         .guild_id
                         .ok_or(PluginError::ExpectedGuild)?

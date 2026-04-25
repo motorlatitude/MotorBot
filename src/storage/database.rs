@@ -3,10 +3,10 @@ use std::path::Path;
 use tracing::{debug, error, info, warn};
 
 use crate::{
-    plugin::PluginError,
     plugins::patches::{
         game_data::{GameData, GuildGameData},
         platforms::platform::Platform,
+        PatchesError,
     },
     storage::StorageError,
 };
@@ -445,7 +445,11 @@ impl Database {
                     let platform_str: String = row.get(1)?;
                     platform = Some(
                         Platform::try_from(platform_str.as_str()).map_err(
-                            |_| Error::Plugin(PluginError::InvalidGamePlatform),
+                            |_| {
+                                Error::Custom(Box::new(
+                                    PatchesError::InvalidGamePlatform,
+                                ))
+                            },
                         )?,
                     );
                     let name: String = row.get(2)?;
@@ -466,7 +470,9 @@ impl Database {
                         guild_data,
                     })
                 } else {
-                    Err(Error::Plugin(PluginError::InvalidGamePlatform))
+                    Err(Error::Custom(Box::new(
+                        PatchesError::InvalidGamePlatform,
+                    )))
                 }
             }
             None => Err(Error::Storage(StorageError::InvalidConnection)),

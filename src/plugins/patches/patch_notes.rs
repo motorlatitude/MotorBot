@@ -1,5 +1,6 @@
 use super::platforms::{platform::Platform, riot::Riot, steam::Steam};
-use crate::Result;
+use crate::plugins::patches::error::PatchesError;
+use crate::{Error, Result};
 
 pub struct PatchNotes {
     pub title: String,
@@ -33,12 +34,10 @@ impl PatchNotes {
     async fn from_steam(game_id: &str) -> Result<Self> {
         let steam_platform = Steam::new();
         let notes = steam_platform.fetch(game_id).await.ok_or_else(|| {
-            crate::Error::Plugin(
-                crate::plugin::PluginError::FetchPatchNotesFailed {
-                    platform: Platform::Steam,
-                    game_id: game_id.to_string(),
-                },
-            )
+            Error::Custom(Box::new(PatchesError::FetchPatchNotesFailed {
+                platform: Platform::Steam,
+                game_id: game_id.to_string(),
+            }))
         })?;
         Ok(Self {
             title: notes.title,
@@ -53,12 +52,10 @@ impl PatchNotes {
     async fn from_riot(game_id: &str) -> Result<Self> {
         let riot_platform: Riot = Riot::new();
         let notes = riot_platform.fetch(game_id).await.ok_or_else(|| {
-            crate::Error::Plugin(
-                crate::plugin::PluginError::FetchPatchNotesFailed {
-                    platform: Platform::Riot,
-                    game_id: game_id.to_string(),
-                },
-            )
+            Error::Custom(Box::new(PatchesError::FetchPatchNotesFailed {
+                platform: Platform::Riot,
+                game_id: game_id.to_string(),
+            }))
         })?;
         Ok(Self {
             title: notes.title,

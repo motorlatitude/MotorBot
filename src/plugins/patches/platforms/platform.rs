@@ -1,4 +1,4 @@
-use crate::{plugin::PluginError, Error};
+use crate::{plugins::patches::PatchesError, Error};
 use std::{fmt, str::FromStr};
 
 #[derive(Debug, Clone, Copy)]
@@ -29,7 +29,9 @@ impl TryFrom<&str> for Platform {
         match s {
             "steam" => Ok(Platform::Steam),
             "riot" => Ok(Platform::Riot),
-            _ => Err(Error::Plugin(PluginError::InvalidGamePlatform)),
+            _ => {
+                Err(Error::Custom(Box::new(PatchesError::InvalidGamePlatform)))
+            }
         }
     }
 }
@@ -50,7 +52,9 @@ impl FromStr for Platform {
         match input {
             "steam" => Ok(Platform::Steam),
             "riot" => Ok(Platform::Riot),
-            _ => Err(Error::Plugin(PluginError::InvalidGamePlatform)),
+            _ => {
+                Err(Error::Custom(Box::new(PatchesError::InvalidGamePlatform)))
+            }
         }
     }
 }
